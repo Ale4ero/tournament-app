@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #f9fafb;
+    color: #111827;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    padding: 0.5rem 1rem;
+    background-color: #0284c7;
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  .btn-primary:hover {
+    background-color: #0369a1;
+  }
+
+  .btn-secondary {
+    padding: 0.5rem 1rem;
+    background-color: #e5e7eb;
+    color: #1f2937;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background-color: #d1d5db;
+  }
+
+  .btn-danger {
+    padding: 0.5rem 1rem;
+    background-color: #dc2626;
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  .btn-danger:hover {
+    background-color: #b91c1c;
+  }
+
+  .card {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    padding: 1.5rem;
+  }
+
+  .input-field {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    outline: none;
+  }
+
+  .input-field:focus {
+    ring: 2px;
+    ring-color: #0ea5e9;
+    border-color: transparent;
+  }
+
+  .badge-upcoming {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: #dbeafe;
+    color: #1e40af;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .badge-live {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: #dcfce7;
+    color: #166534;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .badge-completed {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+}
