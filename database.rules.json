@@ -1,12 +1,34 @@
 {
   "rules": {
+    "organizations": {
+      "$orgId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (
+          !data.exists() ||
+          root.child('organizations').child($orgId).child('admins').child(auth.uid).exists()
+        )"
+      }
+    },
     "tournaments": {
-      ".read": true,
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      "$tournamentId": {
+        ".read": true,
+        ".write": "auth != null &&
+          root.child('users').child(auth.uid).child('role').val() === 'admin' &&
+          root.child('users').child(auth.uid).child('organizationId').val() != null &&
+          (
+            (!data.exists() && root.child('organizations').child(root.child('users').child(auth.uid).child('organizationId').val()).child('admins').child(auth.uid).exists()) ||
+            (data.exists() && root.child('users').child(auth.uid).child('organizationId').val() === data.child('organizationId').val())
+          )"
+      }
     },
     "matches": {
-      ".read": true,
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      "$tournamentId": {
+        ".read": true,
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        "$matchId": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        }
+      }
     },
     "submissions": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
@@ -14,7 +36,7 @@
     },
     "users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
         ".write": "auth != null && auth.uid === $uid"
       }
     }

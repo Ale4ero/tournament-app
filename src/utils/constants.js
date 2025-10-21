@@ -38,6 +38,7 @@ export const USER_ROLE = {
 
 // Database paths
 export const DB_PATHS = {
+  ORGANIZATIONS: 'organizations',
   TOURNAMENTS: 'tournaments',
   MATCHES: 'matches',
   SUBMISSIONS: 'submissions',

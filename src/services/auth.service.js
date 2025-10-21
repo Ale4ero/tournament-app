@@ -1,5 +1,5 @@
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { ref, get } from 'firebase/database';
+import { ref, get, set } from 'firebase/database';
 import { auth, database } from './firebase';
 import { DB_PATHS, USER_ROLE } from '../utils/constants';
 
@@ -33,6 +33,7 @@ export async function signInAdmin(email, password) {
       uid: user.uid,
       email: user.email,
       role: userData.role,
+      organizationId: userData.organizationId || null,
     };
   } catch (error) {
     console.error('Sign in error:', error);
@@ -61,7 +62,7 @@ export async function signOutUser() {
 export function onAuthStateChange(callback) {
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // Get user role from database
+      // Get user role and organization from database
       const userRef = ref(database, `${DB_PATHS.USERS}/${user.uid}`);
       const snapshot = await get(userRef);
 
@@ -71,6 +72,7 @@ export function onAuthStateChange(callback) {
           uid: user.uid,
           email: user.email,
           role: userData.role,
+          organizationId: userData.organizationId || null,
         });
       } else {
         callback(null);
@@ -79,4 +81,25 @@ export function onAuthStateChange(callback) {
       callback(null);
     }
   });
+}
+
+/**
+ * Create initial user profile (called after signup)
+ * @param {string} uid - User ID
+ * @param {string} email - User email
+ * @returns {Promise<void>}
+ */
+export async function createUserProfile(uid, email) {
+  try {
+    const userRef = ref(database, `${DB_PATHS.USERS}/${uid}`);
+    await set(userRef, {
+      email,
+      role: USER_ROLE.ADMIN,
+      organizationId: null,
+      createdAt: Date.now(),
+    });
+  } catch (error) {
+    console.error('Error creating user profile:', error);
+    throw error;
+  }
 }

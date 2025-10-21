@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TOURNAMENT_TYPE, SEEDING_TYPE } from '../../utils/constants';
 
 export default function TournamentForm({ onSuccess }) {
-  const { user } = useAuth();
+  const { user, organizationId } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +63,7 @@ export default function TournamentForm({ onSuccess }) {
         teams,
       };
 
-      const tournamentId = await createTournament(tournamentData, user.uid);
+      const tournamentId = await createTournament(tournamentData, user.uid, organizationId);
 
       if (onSuccess) {
         onSuccess(tournamentId);

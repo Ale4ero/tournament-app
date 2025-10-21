@@ -16,12 +16,19 @@ export function useTournament(tournamentId) {
       return;
     }
 
+    let isSubscribed = true;
+
     const unsubscribe = subscribeTournament(tournamentId, (data) => {
-      setTournament(data);
-      setLoading(false);
+      if (isSubscribed) {
+        setTournament(data);
+        setLoading(false);
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, [tournamentId]);
 
   return { tournament, loading };
@@ -36,12 +43,19 @@ export function useTournaments() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isSubscribed = true;
+
     const unsubscribe = subscribeTournaments((data) => {
-      setTournaments(data);
-      setLoading(false);
+      if (isSubscribed) {
+        setTournaments(data);
+        setLoading(false);
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, []);
 
   return { tournaments, loading };

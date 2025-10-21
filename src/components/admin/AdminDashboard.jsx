@@ -1,12 +1,28 @@
 import { Link } from 'react-router-dom';
-import { useTournaments } from '../../hooks/useTournament';
-import { getAllPendingSubmissions } from '../../services/match.service';
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useOrganization } from '../../hooks/useOrganization';
+import { subscribeTournamentsByOrganization } from '../../services/tournament.service';
+import { getAllPendingSubmissions } from '../../services/match.service';
 import TournamentCard from '../tournament/TournamentCard';
 
 export default function AdminDashboard() {
-  const { tournaments, loading } = useTournaments();
+  const { organizationId } = useAuth();
+  const { organization, loading: orgLoading } = useOrganization(organizationId);
+  const [tournaments, setTournaments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const unsubscribe = subscribeTournamentsByOrganization(organizationId, (data) => {
+      setTournaments(data);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [organizationId]);
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -27,7 +43,12 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          {organization && (
+            <p className="text-gray-600 mt-1">{organization.name}</p>
+          )}
+        </div>
         <Link to="/admin/tournament/create" className="btn-primary">
           + Create Tournament
         </Link>

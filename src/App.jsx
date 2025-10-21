@@ -8,6 +8,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import CreateTournamentPage from './pages/CreateTournamentPage';
 import TournamentView from './pages/TournamentView';
 import MatchPage from './pages/MatchPage';
+import OrganizationSetupPage from './pages/OrganizationSetupPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="/match/:matchId" element={<MatchPage />} />
 
           {/* Admin Routes */}
+          <Route path="/organization/setup" element={<OrganizationSetupPage />} />
           <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="/admin/tournament/create" element={<CreateTournamentPage />} />
         </Routes>

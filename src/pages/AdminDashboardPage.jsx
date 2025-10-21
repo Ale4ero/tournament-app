@@ -4,7 +4,7 @@ import Layout from '../components/layout/Layout';
 import AdminDashboard from '../components/admin/AdminDashboard';
 
 export default function AdminDashboardPage() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, hasOrganization } = useAuth();
 
   if (loading) {
     return (
@@ -16,6 +16,11 @@ export default function AdminDashboardPage() {
 
   if (!user || !isAdmin) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to organization setup if user doesn't have an organization
+  if (!hasOrganization) {
+    return <Navigate to="/organization/setup" replace />;
   }
 
   return (

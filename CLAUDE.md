@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**VolleyFlow** is a real-time volleyball tournament management web application. It allows admins to create and manage tournaments while enabling public users (without authentication) to view live brackets and submit scores for approval.
+**VolleyFlow** is a real-time volleyball tournament management web application with multi-organization support. Each organization can have multiple admins who manage tournaments specific to their organization. Public users (without authentication) can view live brackets and submit scores for approval.
 
 ## Tech Stack
 
@@ -47,8 +47,13 @@ firebase deploy --only hosting   # Deploy only hosting
 ### Firebase Realtime Database Structure
 
 ```
+/organizations/{organizationId}
+  - id, name, description, createdBy, createdAt
+  - admins: { uid1: true, uid2: true, ... }
+
 /tournaments/{tournamentId}
-  - id, name, description, type, status, teams[], createdAt, createdBy
+  - id, name, description, type, status, teams[], organizationId
+  - createdAt, createdBy, startDate, endDate
 
 /matches/{tournamentId}/{matchId}
   - id, tournamentId, round, matchNumber, team1, team2, score1, score2
@@ -59,16 +64,17 @@ firebase deploy --only hosting   # Deploy only hosting
   - submittedBy, submittedAt, status (pending/approved/rejected)
 
 /users/{uid}
-  - email, role (admin), createdAt
+  - email, role (admin), organizationId, createdAt
 ```
 
 ### Key Architectural Patterns
 
 **Service Layer** (`src/services/`):
 - All Firebase operations are abstracted into service modules
-- `tournament.service.js`: CRUD for tournaments
+- `organization.service.js`: Organization CRUD, admin management
+- `tournament.service.js`: CRUD for tournaments, organization filtering
 - `match.service.js`: Match management, score submission/approval
-- `auth.service.js`: Admin authentication
+- `auth.service.js`: Admin authentication, user profile management
 
 **Real-Time Subscriptions**:
 - Custom hooks (`useTournament`, `useMatches`, `useSubmissions`) subscribe to Firebase changes
@@ -90,6 +96,7 @@ firebase deploy --only hosting   # Deploy only hosting
 ```
 components/
 ├── layout/          # Header, Footer, Layout wrapper
+├── organization/    # OrganizationForm (create/join organization)
 ├── tournament/      # TournamentList, TournamentCard, TournamentForm
 ├── bracket/         # BracketView, MatchCard (visual bracket display)
 ├── match/           # MatchDetail, ScoreSubmissionForm, ScoreApprovalPanel
@@ -100,11 +107,37 @@ pages/               # Route-level components
 ├── Home.jsx         # Public tournament list
 ├── TournamentView.jsx  # Public bracket view
 ├── MatchPage.jsx    # Match detail (public score submission)
+├── OrganizationSetupPage.jsx  # Organization onboarding
 ├── AdminDashboardPage.jsx  # Admin panel
 └── CreateTournamentPage.jsx  # Tournament creation form
 ```
 
 ## Important Implementation Details
+
+### Organization Architecture
+
+**Multi-Tenancy Model:**
+- Each admin belongs to exactly one organization
+- Each tournament belongs to exactly one organization
+- Admins can only manage tournaments within their organization
+
+**Onboarding Flow:**
+1. New admin signs up → redirected to `/organization/setup`
+2. Choose "Create Organization" or "Join Organization"
+3. If creating → provide org name and description
+4. If joining → select from existing organizations
+5. User's `organizationId` is set in `/users/{uid}`
+6. Redirect to `/admin` dashboard
+
+**Data Isolation:**
+- `subscribeTournamentsByOrganization()` filters tournaments by `organizationId`
+- Admin dashboard only shows tournaments from their organization
+- Security rules prevent cross-organization data access
+
+**Organization Services:**
+- `createOrganization()` - Creates org and sets creator as admin
+- `addAdminToOrganization()` - Adds user to org admin list
+- `subscribeOrganization()` - Real-time org data updates
 
 ### Tournament Creation
 

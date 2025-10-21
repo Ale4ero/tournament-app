@@ -1,4 +1,4 @@
-import { ref, push, set, get, update, remove, onValue, query, orderByChild } from 'firebase/database';
+import { ref, push, set, get, update, remove, onValue, query, orderByChild, equalTo } from 'firebase/database';
 import { database } from './firebase';
 import { DB_PATHS, TOURNAMENT_STATUS } from '../utils/constants';
 import { generateSingleEliminationBracket } from '../utils/bracketGenerator';
@@ -8,9 +8,10 @@ import { getTournamentStatus } from '../utils/tournamentStatus';
  * Create a new tournament
  * @param {Object} tournamentData - Tournament data
  * @param {string} adminUid - Admin user ID
+ * @param {string} organizationId - Organization ID
  * @returns {Promise<string>} Tournament ID
  */
-export async function createTournament(tournamentData, adminUid) {
+export async function createTournament(tournamentData, adminUid, organizationId) {
   try {
     const tournamentRef = push(ref(database, DB_PATHS.TOURNAMENTS));
     const tournamentId = tournamentRef.key;
@@ -18,6 +19,7 @@ export async function createTournament(tournamentData, adminUid) {
     const tournament = {
       id: tournamentId,
       ...tournamentData,
+      organizationId,
       status: TOURNAMENT_STATUS.UPCOMING,
       createdAt: Date.now(),
       createdBy: adminUid,
@@ -161,7 +163,66 @@ export function subscribeTournament(tournamentId, callback) {
  */
 export function subscribeTournaments(callback) {
   const tournamentsRef = ref(database, DB_PATHS.TOURNAMENTS);
-  return onValue(tournamentsRef, (snapshot) => {
+  return onValue(
+    tournamentsRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
+
+      const tournaments = [];
+      snapshot.forEach((child) => {
+        tournaments.push(child.val());
+      });
+
+      callback(tournaments.sort((a, b) => b.createdAt - a.createdAt));
+    },
+    (error) => {
+      console.error('Error subscribing to tournaments:', error);
+      callback([]);
+    }
+  );
+}
+
+/**
+ * Get tournaments by organization ID
+ * @param {string} organizationId - Organization ID
+ * @returns {Promise<Object[]>} Array of tournaments
+ */
+export async function getTournamentsByOrganization(organizationId) {
+  try {
+    const tournamentsRef = ref(database, DB_PATHS.TOURNAMENTS);
+    const orgQuery = query(tournamentsRef, orderByChild('organizationId'), equalTo(organizationId));
+    const snapshot = await get(orgQuery);
+
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    const tournaments = [];
+    snapshot.forEach((child) => {
+      tournaments.push(child.val());
+    });
+
+    return tournaments.sort((a, b) => b.createdAt - a.createdAt);
+  } catch (error) {
+    console.error('Error getting organization tournaments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Subscribe to tournaments for an organization
+ * @param {string} organizationId - Organization ID
+ * @param {Function} callback - Callback function with tournaments array
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeTournamentsByOrganization(organizationId, callback) {
+  const tournamentsRef = ref(database, DB_PATHS.TOURNAMENTS);
+  const orgQuery = query(tournamentsRef, orderByChild('organizationId'), equalTo(organizationId));
+
+  return onValue(orgQuery, (snapshot) => {
     if (!snapshot.exists()) {
       callback([]);
       return;
