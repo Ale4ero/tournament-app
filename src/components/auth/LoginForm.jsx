@@ -51,8 +51,8 @@ export default function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="input-field"
-                placeholder="admin@volleyflow.com"
+                className="input-field placeholder:text-gray-400"
+                placeholder="example@email.com"
               />
             </div>
 
@@ -66,8 +66,8 @@ export default function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="input-field"
-                placeholder="••••••••"
+                className="input-field placeholder:text-gray-400"
+                placeholder="password"
               />
             </div>
 

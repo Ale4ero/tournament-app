@@ -60,12 +60,12 @@
     border: 1px solid #d1d5db;
     border-radius: 0.5rem;
     outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
 
   .input-field:focus {
-    ring: 2px;
-    ring-color: #0ea5e9;
-    border-color: transparent;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
   }
 
   .badge-upcoming {
