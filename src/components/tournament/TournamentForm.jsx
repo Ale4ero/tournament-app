@@ -97,8 +97,8 @@ export default function TournamentForm({ onSuccess }) {
           value={formData.name}
           onChange={handleChange}
           required
-          className="input-field"
-          placeholder="Summer Beach Volleyball Championship"
+          className="input-field placeholder:text-gray-400"
+          placeholder="Tournament Name"
         />
       </div>
 
@@ -112,7 +112,7 @@ export default function TournamentForm({ onSuccess }) {
           value={formData.description}
           onChange={handleChange}
           rows={3}
-          className="input-field"
+          className="input-field placeholder:text-gray-400"
           placeholder="Optional description of the tournament..."
         />
       </div>
@@ -191,7 +191,7 @@ export default function TournamentForm({ onSuccess }) {
           onChange={handleChange}
           rows={8}
           required
-          className="input-field font-mono text-sm"
+          className="input-field font-mono text-sm placeholder:text-gray-400"
           placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;Team Delta&#10;..."
         />
         <p className="text-xs text-gray-500 mt-1">
