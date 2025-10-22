@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { formatDate } from '../../utils/tournamentStatus';
 import { TOURNAMENT_STATUS } from '../../utils/constants';
+import { useOrganization } from '../../hooks/useOrganization';
 
 export default function TournamentCard({ tournament }) {
+  const { organization } = useOrganization(tournament.organizationId);
+
   const getStatusBadge = (status) => {
     const badges = {
       [TOURNAMENT_STATUS.UPCOMING]: 'badge-upcoming',
@@ -20,15 +23,18 @@ export default function TournamentCard({ tournament }) {
     <Link to={`/tournament/${tournament.id}`}>
       <div className="card hover:shadow-lg transition-shadow cursor-pointer h-full">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="text-xl font-bold text-gray-900">{tournament.name}</h3>
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-gray-900">{tournament.name}</h3>
+            {organization && (
+              <p className="text-sm text-gray-500 mt-1">
+                {organization.name}
+              </p>
+            )}
+          </div>
           <span className={getStatusBadge(tournament.status)}>
             {getStatusText(tournament.status)}
           </span>
         </div>
-
-        {tournament.description && (
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{tournament.description}</p>
-        )}
 
         <div className="space-y-2 text-sm text-gray-700">
           <div className="flex items-center">

@@ -1,9 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Header() {
   const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -12,6 +13,21 @@ export default function Header() {
     } catch (error) {
       console.error('Sign out error:', error);
     }
+  };
+
+  const isActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  const getLinkClassName = (path) => {
+    const baseClasses = "font-medium transition-colors pb-1 border-b-2";
+    if (isActive(path)) {
+      return `${baseClasses} text-primary-600 border-primary-600`;
+    }
+    return `${baseClasses} text-gray-700 hover:text-primary-600 border-transparent`;
   };
 
   return (
@@ -23,7 +39,7 @@ export default function Header() {
           </Link>
 
           <nav className="flex items-center space-x-4">
-            <Link to="/" className="text-gray-700 hover:text-primary-600 font-medium">
+            <Link to="/" className={getLinkClassName('/')}>
               Tournaments
             </Link>
 
@@ -31,7 +47,7 @@ export default function Header() {
               <>
                 <Link
                   to="/admin"
-                  className="text-gray-700 hover:text-primary-600 font-medium"
+                  className={getLinkClassName('/admin')}
                 >
                   Admin Dashboard
                 </Link>
