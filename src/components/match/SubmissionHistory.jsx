@@ -50,6 +50,26 @@ export default function SubmissionHistory({ submissions }) {
               <div className="text-2xl font-bold text-gray-800">{submission.score2}</div>
             </div>
           </div>
+
+          {/* Show set-by-set breakdown if available (from scoreboard) */}
+          {submission.setScores && submission.setScores.length > 0 && (
+            <div className="mt-3 bg-white rounded-lg p-3 border border-gray-200">
+              <div className="text-xs font-semibold text-gray-700 mb-2">Set Breakdown:</div>
+              <div className="space-y-1">
+                {submission.setScores.map((set, index) => {
+                  if (!set.winner) return null;
+                  return (
+                    <div key={index} className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600">Set {set.setNumber}</span>
+                      <span className="font-medium">
+                        {set.team1Score} - {set.team2Score}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>

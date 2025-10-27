@@ -85,6 +85,30 @@ export default function MatchDetail({ match, tournament }) {
           </div>
         </div>
 
+        {/* Set Breakdown (if available from scoreboard) */}
+        {match.setScores && match.setScores.length > 0 && (
+          <div className="mt-6 bg-gray-50 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Set-by-Set Results</h3>
+            <div className="space-y-2">
+              {match.setScores.map((set, index) => {
+                if (!set.winner) return null;
+                const setWinnerName = set.winner === 'team1' ? match.team1 : match.team2;
+                return (
+                  <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3">
+                    <div>
+                      <span className="font-semibold text-gray-900">Set {set.setNumber}</span>
+                      <span className="text-sm text-gray-600 ml-2">({setWinnerName} wins)</span>
+                    </div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {match.team1}: {set.team1Score} - {match.team2}: {set.team2Score}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Match Info */}
         {(match.approvedAt || match.submittedAt) && (
           <div className="mt-6 pt-6 border-t border-gray-200 text-sm text-gray-600">

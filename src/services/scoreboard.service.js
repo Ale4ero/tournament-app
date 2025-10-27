@@ -205,11 +205,11 @@ async function checkAndAdvanceSet(scoreboardId, userId) {
 
     // Check if match is won
     if (team1SetsWon >= setsToWin) {
-      await completeScoreboard(scoreboardId, 'team1', userId);
+      await completeScoreboard(scoreboardId, 'team1', userId, team1SetsWon, team2SetsWon);
       return;
     }
     if (team2SetsWon >= setsToWin) {
-      await completeScoreboard(scoreboardId, 'team2', userId);
+      await completeScoreboard(scoreboardId, 'team2', userId, team1SetsWon, team2SetsWon);
       return;
     }
 
@@ -245,14 +245,18 @@ async function checkAndAdvanceSet(scoreboardId, userId) {
  * @param {string} scoreboardId - Scoreboard ID
  * @param {string} winner - 'team1' or 'team2'
  * @param {string} userId - User ID
+ * @param {number} team1SetsWon - Final count of sets won by team1
+ * @param {number} team2SetsWon - Final count of sets won by team2
  * @returns {Promise<void>}
  */
-async function completeScoreboard(scoreboardId, winner, userId) {
+async function completeScoreboard(scoreboardId, winner, userId, team1SetsWon, team2SetsWon) {
   try {
     const scoreboardRef = ref(database, `${DB_PATHS.SCOREBOARDS}/${scoreboardId}`);
     await update(scoreboardRef, {
       status: SCOREBOARD_STATUS.REVIEW,
       winner,
+      team1SetsWon,
+      team2SetsWon,
       locked: true,
       lastUpdated: Date.now(),
       lastUpdatedBy: userId,
@@ -280,16 +284,19 @@ export async function submitScoreboardResults(scoreboardId, userId) {
       throw new Error('Scoreboard must be in review status');
     }
 
-    // Calculate total scores (sum of all sets)
-    let team1TotalScore = 0;
-    let team2TotalScore = 0;
+    // Determine final scores based on match format
+    let score1, score2;
 
-    scoreboard.sets.forEach((set) => {
-      if (set.winner) {
-        team1TotalScore += set.team1Score;
-        team2TotalScore += set.team2Score;
-      }
-    });
+    if (scoreboard.rules.bestOf > 1) {
+      // For multi-set matches, use sets won as the final score
+      score1 = scoreboard.team1SetsWon;
+      score2 = scoreboard.team2SetsWon;
+    } else {
+      // For single-set matches, use the point total from the only set
+      const firstSet = scoreboard.sets[0];
+      score1 = firstSet ? firstSet.team1Score : 0;
+      score2 = firstSet ? firstSet.team2Score : 0;
+    }
 
     // Create submission entry
     const submissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${scoreboard.matchId}/${Date.now()}`);
@@ -298,8 +305,8 @@ export async function submitScoreboardResults(scoreboardId, userId) {
       tournamentId: scoreboard.tournamentId,
       team1: scoreboard.team1,
       team2: scoreboard.team2,
-      score1: team1TotalScore,
-      score2: team2TotalScore,
+      score1,
+      score2,
       submittedBy: userId,
       submittedAt: Date.now(),
       status: 'pending',
