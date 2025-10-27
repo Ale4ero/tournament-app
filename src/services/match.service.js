@@ -180,6 +180,32 @@ export async function approveScore(matchId, submissionId, adminUid) {
       status: SUBMISSION_STATUS.APPROVED,
     });
 
+    // Reject all other pending submissions for this match
+    const allSubmissionsRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}`);
+    const allSubmissionsSnapshot = await get(allSubmissionsRef);
+
+    if (allSubmissionsSnapshot.exists()) {
+      const updatePromises = [];
+      allSubmissionsSnapshot.forEach((child) => {
+        const otherSubmission = child.val();
+        // Reject if it's a different submission and still pending
+        if (otherSubmission.id !== submissionId && otherSubmission.status === SUBMISSION_STATUS.PENDING) {
+          const otherSubmissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}/${otherSubmission.id}`);
+          updatePromises.push(
+            update(otherSubmissionRef, {
+              status: SUBMISSION_STATUS.REJECTED,
+            })
+          );
+        }
+      });
+
+      // Wait for all rejections to complete
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log(`Rejected ${updatePromises.length} other pending submissions for match ${matchId}`);
+      }
+    }
+
     // Advance winner to next match if exists
     if (winner && match.nextMatchId) {
       console.log('Advancing winner:', winner, 'to match:', match.nextMatchId);
@@ -281,6 +307,32 @@ export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, 
       approvedAt: Date.now(),
       approvedBy: adminUid,
     });
+
+    // Reject all pending submissions for this match (since admin submitted directly)
+    const allSubmissionsRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}`);
+    const allSubmissionsSnapshot = await get(allSubmissionsRef);
+
+    if (allSubmissionsSnapshot.exists()) {
+      const updatePromises = [];
+      allSubmissionsSnapshot.forEach((child) => {
+        const submission = child.val();
+        // Reject all pending submissions
+        if (submission.status === SUBMISSION_STATUS.PENDING) {
+          const submissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}/${submission.id}`);
+          updatePromises.push(
+            update(submissionRef, {
+              status: SUBMISSION_STATUS.REJECTED,
+            })
+          );
+        }
+      });
+
+      // Wait for all rejections to complete
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log(`Rejected ${updatePromises.length} pending submissions for match ${matchId} (admin direct submission)`);
+      }
+    }
 
     // Advance winner to next match if exists
     if (winner && match.nextMatchId) {
