@@ -1,13 +1,45 @@
-import { MATCH_STATUS } from './constants';
+import { MATCH_STATUS, DEFAULT_MATCH_RULES } from './constants';
+
+/**
+ * Gets the round name/key for a given round number
+ * @param {number} round - Round number (1 = finals, higher = earlier rounds)
+ * @param {number} totalRounds - Total number of rounds
+ * @returns {string} Round key (e.g., 'finals', 'semifinals', 'round1')
+ */
+export function getRoundKey(round, totalRounds) {
+  if (round === 1) return 'finals';
+  if (round === 2) return 'semifinals';
+  if (round === 3) return 'quarterfinals';
+  // Earlier rounds are numbered
+  return `round${totalRounds - round + 1}`;
+}
+
+/**
+ * Generates default match rules for all rounds in a tournament
+ * @param {number} numTeams - Number of teams in the tournament
+ * @returns {Object} Match rules object with keys for each round
+ */
+export function generateDefaultMatchRules(numTeams) {
+  const numRounds = Math.ceil(Math.log2(numTeams));
+  const rules = {};
+
+  for (let round = 1; round <= numRounds; round++) {
+    const roundKey = getRoundKey(round, numRounds);
+    rules[roundKey] = { ...DEFAULT_MATCH_RULES };
+  }
+
+  return rules;
+}
 
 /**
  * Generates a single elimination bracket structure
  * @param {string[]} teams - Array of team names
  * @param {string} tournamentId - Tournament ID
  * @param {string} seedingType - 'manual' or 'random'
+ * @param {Object} matchRules - Match rules per round (optional)
  * @returns {Object[]} Array of match objects
  */
-export function generateSingleEliminationBracket(teams, tournamentId, seedingType = 'random') {
+export function generateSingleEliminationBracket(teams, tournamentId, seedingType = 'random', matchRules = {}) {
   // Shuffle teams if random seeding
   const seededTeams = seedingType === 'random' ? shuffleArray([...teams]) : [...teams];
 
@@ -22,6 +54,8 @@ export function generateSingleEliminationBracket(teams, tournamentId, seedingTyp
   // Start from the final round and work backwards
   for (let round = 1; round <= numRounds; round++) {
     const matchesInRound = Math.pow(2, round - 1);
+    const roundKey = getRoundKey(round, numRounds);
+    const roundRules = matchRules[roundKey] || DEFAULT_MATCH_RULES;
 
     for (let i = 0; i < matchesInRound; i++) {
       const matchId = `${tournamentId}_r${round}_m${i + 1}`;
@@ -29,6 +63,7 @@ export function generateSingleEliminationBracket(teams, tournamentId, seedingTyp
         id: matchId,
         tournamentId,
         round,
+        roundName: roundKey,
         matchNumber: matchCounter++,
         team1: null,
         team2: null,
@@ -41,6 +76,8 @@ export function generateSingleEliminationBracket(teams, tournamentId, seedingTyp
         submittedAt: null,
         approvedAt: null,
         approvedBy: null,
+        rules: { ...roundRules },
+        setScores: [],
       };
 
       // Link to next round match

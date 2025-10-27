@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createTournament } from '../../services/tournament.service';
+import { createTournamentDraft } from '../../services/tournament.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { TOURNAMENT_TYPE, SEEDING_TYPE } from '../../utils/constants';
 
@@ -53,26 +53,26 @@ export default function TournamentForm({ onSuccess }) {
         return;
       }
 
-      const tournamentData = {
+      const draftData = {
         name: formData.name,
         description: formData.description,
         type: formData.type,
         seedingType: formData.seedingType,
         startDate: formData.startDate ? new Date(formData.startDate).getTime() : Date.now(),
-        endDate: formData.endDate ? new Date(formData.endDate).getTime() : null,
         teams,
       };
 
-      const tournamentId = await createTournament(tournamentData, user.uid, organizationId);
-
-      if (onSuccess) {
-        onSuccess(tournamentId);
-      } else {
-        navigate(`/tournament/${tournamentId}`);
+      // Only include endDate if it's provided
+      if (formData.endDate) {
+        draftData.endDate = new Date(formData.endDate).getTime();
       }
+
+      // Create draft and redirect to Manage Bracket page
+      const draftId = await createTournamentDraft(draftData, user.uid, organizationId);
+      navigate(`/tournaments/manage-bracket/${draftId}`);
     } catch (err) {
-      setError(err.message || 'Failed to create tournament');
-      console.error('Create tournament error:', err);
+      setError(err.message || 'Failed to create tournament draft');
+      console.error('Create tournament draft error:', err);
     } finally {
       setLoading(false);
     }
@@ -205,7 +205,7 @@ export default function TournamentForm({ onSuccess }) {
           disabled={loading}
           className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Creating Tournament...' : 'Create Tournament'}
+          {loading ? 'Saving...' : 'Manage Bracket'}
         </button>
         <button
           type="button"

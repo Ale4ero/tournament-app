@@ -40,7 +40,16 @@ export const USER_ROLE = {
 export const DB_PATHS = {
   ORGANIZATIONS: 'organizations',
   TOURNAMENTS: 'tournaments',
+  TOURNAMENT_DRAFTS: 'tournamentDrafts',
   MATCHES: 'matches',
   SUBMISSIONS: 'submissions',
   USERS: 'users',
+};
+
+// Default match rules for volleyball
+export const DEFAULT_MATCH_RULES = {
+  firstTo: 21,
+  winBy: 2,
+  cap: 30,
+  bestOf: 3,
 };

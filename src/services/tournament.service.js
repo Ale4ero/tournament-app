@@ -1,11 +1,155 @@
 import { ref, push, set, get, update, remove, onValue, query, orderByChild, equalTo } from 'firebase/database';
 import { database } from './firebase';
 import { DB_PATHS, TOURNAMENT_STATUS } from '../utils/constants';
-import { generateSingleEliminationBracket } from '../utils/bracketGenerator';
+import { generateSingleEliminationBracket, generateDefaultMatchRules } from '../utils/bracketGenerator';
 import { getTournamentStatus } from '../utils/tournamentStatus';
 
 /**
- * Create a new tournament
+ * Create a tournament draft (basic info without bracket)
+ * @param {Object} draftData - Draft tournament data
+ * @param {string} adminUid - Admin user ID
+ * @param {string} organizationId - Organization ID
+ * @returns {Promise<string>} Draft ID
+ */
+export async function createTournamentDraft(draftData, adminUid, organizationId) {
+  try {
+    const draftRef = push(ref(database, DB_PATHS.TOURNAMENT_DRAFTS));
+    const draftId = draftRef.key;
+
+    const draft = {
+      id: draftId,
+      ...draftData,
+      organizationId,
+      createdBy: adminUid,
+      createdAt: Date.now(),
+      step: 'basic',
+    };
+
+    await set(draftRef, draft);
+    return draftId;
+  } catch (error) {
+    console.error('Error creating tournament draft:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get tournament draft by ID
+ * @param {string} draftId - Draft ID
+ * @returns {Promise<Object|null>} Draft object or null
+ */
+export async function getTournamentDraft(draftId) {
+  try {
+    const draftRef = ref(database, `${DB_PATHS.TOURNAMENT_DRAFTS}/${draftId}`);
+    const snapshot = await get(draftRef);
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (error) {
+    console.error('Error getting tournament draft:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update tournament draft
+ * @param {string} draftId - Draft ID
+ * @param {Object} updates - Fields to update
+ * @returns {Promise<void>}
+ */
+export async function updateTournamentDraft(draftId, updates) {
+  try {
+    const draftRef = ref(database, `${DB_PATHS.TOURNAMENT_DRAFTS}/${draftId}`);
+    await update(draftRef, updates);
+  } catch (error) {
+    console.error('Error updating tournament draft:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete tournament draft
+ * @param {string} draftId - Draft ID
+ * @returns {Promise<void>}
+ */
+export async function deleteTournamentDraft(draftId) {
+  try {
+    const draftRef = ref(database, `${DB_PATHS.TOURNAMENT_DRAFTS}/${draftId}`);
+    await remove(draftRef);
+  } catch (error) {
+    console.error('Error deleting tournament draft:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a new tournament from draft with match rules
+ * @param {string} draftId - Draft ID
+ * @param {Object} matchRules - Match rules per round
+ * @returns {Promise<string>} Tournament ID
+ */
+export async function createTournamentFromDraft(draftId, matchRules) {
+  try {
+    // Get draft data
+    const draft = await getTournamentDraft(draftId);
+    if (!draft) {
+      throw new Error('Draft not found');
+    }
+
+    // Create tournament
+    const tournamentRef = push(ref(database, DB_PATHS.TOURNAMENTS));
+    const tournamentId = tournamentRef.key;
+
+    const tournament = {
+      id: tournamentId,
+      name: draft.name,
+      description: draft.description,
+      type: draft.type,
+      seedingType: draft.seedingType,
+      startDate: draft.startDate,
+      teams: draft.teams,
+      matchRules,
+      organizationId: draft.organizationId,
+      status: TOURNAMENT_STATUS.UPCOMING,
+      createdAt: Date.now(),
+      createdBy: draft.createdBy,
+    };
+
+    // Only include endDate if it exists in the draft
+    if (draft.endDate) {
+      tournament.endDate = draft.endDate;
+    }
+
+    await set(tournamentRef, tournament);
+
+    // Generate bracket with match rules
+    if (draft.teams && draft.teams.length > 0) {
+      const matches = generateSingleEliminationBracket(
+        draft.teams,
+        tournamentId,
+        draft.seedingType || 'random',
+        matchRules
+      );
+
+      // Save all matches
+      const matchesRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}`);
+      const matchesData = {};
+      matches.forEach(match => {
+        matchesData[match.id] = match;
+      });
+      await set(matchesRef, matchesData);
+    }
+
+    // Delete draft
+    await deleteTournamentDraft(draftId);
+
+    return tournamentId;
+  } catch (error) {
+    console.error('Error creating tournament from draft:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a new tournament (legacy support - without match rules configuration)
  * @param {Object} tournamentData - Tournament data
  * @param {string} adminUid - Admin user ID
  * @param {string} organizationId - Organization ID
@@ -16,14 +160,29 @@ export async function createTournament(tournamentData, adminUid, organizationId)
     const tournamentRef = push(ref(database, DB_PATHS.TOURNAMENTS));
     const tournamentId = tournamentRef.key;
 
+    // Generate default match rules if not provided
+    const matchRules = tournamentData.matchRules ||
+      (tournamentData.teams ? generateDefaultMatchRules(tournamentData.teams.length) : {});
+
     const tournament = {
       id: tournamentId,
-      ...tournamentData,
+      name: tournamentData.name,
+      description: tournamentData.description,
+      type: tournamentData.type,
+      seedingType: tournamentData.seedingType,
+      startDate: tournamentData.startDate,
+      teams: tournamentData.teams,
+      matchRules,
       organizationId,
       status: TOURNAMENT_STATUS.UPCOMING,
       createdAt: Date.now(),
       createdBy: adminUid,
     };
+
+    // Only include endDate if it's provided
+    if (tournamentData.endDate) {
+      tournament.endDate = tournamentData.endDate;
+    }
 
     await set(tournamentRef, tournament);
 
@@ -32,7 +191,8 @@ export async function createTournament(tournamentData, adminUid, organizationId)
       const matches = generateSingleEliminationBracket(
         tournamentData.teams,
         tournamentId,
-        tournamentData.seedingType || 'random'
+        tournamentData.seedingType || 'random',
+        matchRules
       );
 
       // Save all matches

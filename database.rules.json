@@ -22,6 +22,17 @@
           )"
       }
     },
+    "tournamentDrafts": {
+      "$draftId": {
+        ".read": "auth != null &&
+          root.child('users').child(auth.uid).child('role').val() === 'admin' &&
+          (!data.exists() || data.child('createdBy').val() === auth.uid)",
+        ".write": "auth != null &&
+          root.child('users').child(auth.uid).child('role').val() === 'admin' &&
+          root.child('users').child(auth.uid).child('organizationId').val() != null &&
+          (!data.exists() || data.child('createdBy').val() === auth.uid)"
+      }
+    },
     "matches": {
       "$tournamentId": {
         ".read": true,
