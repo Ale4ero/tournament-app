@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   const { organization, loading: orgLoading } = useOrganization(organizationId);
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingSubmissions, setPendingSubmissions] = useState([]);
 
   useEffect(() => {
     if (!organizationId) return;
@@ -28,7 +28,7 @@ export default function AdminDashboard() {
     const fetchPending = async () => {
       try {
         const pending = await getAllPendingSubmissions();
-        setPendingCount(pending.length);
+        setPendingSubmissions(pending);
       } catch (error) {
         console.error('Error fetching pending submissions:', error);
       }
@@ -70,22 +70,36 @@ export default function AdminDashboard() {
 
         <div className="card">
           <h3 className="text-sm font-medium text-gray-600 mb-2">Pending Submissions</h3>
-          <p className="text-3xl font-bold text-yellow-600">{pendingCount}</p>
+          <p className="text-3xl font-bold text-yellow-600">{pendingSubmissions.length}</p>
         </div>
       </div>
 
       {/* Pending Submissions Alert */}
-      {pendingCount > 0 && (
+      {pendingSubmissions.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-yellow-600 text-xl">⚠️</span>
-            <div>
-              <p className="font-medium text-yellow-800">
-                You have {pendingCount} pending score {pendingCount === 1 ? 'submission' : 'submissions'}
-              </p>
-              <p className="text-sm text-yellow-700 mt-1">
-                Review them by visiting the respective match pages
-              </p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-600 text-xl">⚠️</span>
+              <div>
+                <p className="font-medium text-yellow-800">
+                  You have {pendingSubmissions.length} pending score{' '}
+                  {pendingSubmissions.length === 1 ? 'submission' : 'submissions'}
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Click below to review and approve or reject
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {pendingSubmissions.slice(0, 3).map((submission, index) => (
+                <Link
+                  key={submission.matchId || index}
+                  to={`/match/${submission.matchId}`}
+                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Review {pendingSubmissions.length > 1 ? `#${index + 1}` : 'Now'}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
