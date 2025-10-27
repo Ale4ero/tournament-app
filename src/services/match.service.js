@@ -49,6 +49,23 @@ export async function getMatchById(tournamentId, matchId) {
 }
 
 /**
+ * Get match by ID (searches across all tournaments)
+ * @param {string} matchId - Match ID
+ * @returns {Promise<Object|null>} Match object or null
+ */
+export async function getMatch(matchId) {
+  try {
+    // matchId format: tournamentId_rX_mY
+    // Extract tournament ID (everything before _r)
+    const tournamentId = matchId.split('_r')[0];
+    return await getMatchById(tournamentId, matchId);
+  } catch (error) {
+    console.error('Error getting match:', error);
+    throw error;
+  }
+}
+
+/**
  * Submit a score (public users)
  * @param {string} matchId - Match ID
  * @param {Object} scoreData - Score submission data
@@ -151,7 +168,7 @@ export async function approveScore(matchId, submissionId, adminUid) {
     }
 
     const submission = submissionSnapshot.val();
-    const { tournamentId, score1, score2, team1, team2 } = submission;
+    const { tournamentId, score1, score2, team1, team2, setScores } = submission;
 
     // Determine winner
     const winner = determineWinner(score1, score2, team1, team2);
@@ -166,14 +183,21 @@ export async function approveScore(matchId, submissionId, adminUid) {
 
     const match = matchSnapshot.val();
 
-    await update(matchRef, {
+    const matchUpdates = {
       score1,
       score2,
       winner,
       status: MATCH_STATUS.COMPLETED,
       approvedAt: Date.now(),
       approvedBy: adminUid,
-    });
+    };
+
+    // Include setScores if this came from scoreboard
+    if (setScores && Array.isArray(setScores)) {
+      matchUpdates.setScores = setScores;
+    }
+
+    await update(matchRef, matchUpdates);
 
     // Update submission status
     await update(submissionRef, {
@@ -188,9 +212,10 @@ export async function approveScore(matchId, submissionId, adminUid) {
       const updatePromises = [];
       allSubmissionsSnapshot.forEach((child) => {
         const otherSubmission = child.val();
+        const otherSubmissionId = child.key; // Get Firebase key
         // Reject if it's a different submission and still pending
-        if (otherSubmission.id !== submissionId && otherSubmission.status === SUBMISSION_STATUS.PENDING) {
-          const otherSubmissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}/${otherSubmission.id}`);
+        if (otherSubmissionId !== submissionId && otherSubmission.status === SUBMISSION_STATUS.PENDING) {
+          const otherSubmissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}/${otherSubmissionId}`);
           updatePromises.push(
             update(otherSubmissionRef, {
               status: SUBMISSION_STATUS.REJECTED,
@@ -492,7 +517,10 @@ export function subscribeSubmissions(matchId, callback) {
     snapshot.forEach((child) => {
       const submission = child.val();
       if (submission.status === SUBMISSION_STATUS.PENDING) {
-        submissions.push(submission);
+        submissions.push({
+          ...submission,
+          id: child.key, // Add Firebase key as id
+        });
       }
     });
 
@@ -516,7 +544,10 @@ export function subscribeAllSubmissions(matchId, callback) {
 
     const submissions = [];
     snapshot.forEach((child) => {
-      submissions.push(child.val());
+      submissions.push({
+        ...child.val(),
+        id: child.key, // Add Firebase key as id
+      });
     });
 
     callback(submissions.sort((a, b) => b.submittedAt - a.submittedAt));

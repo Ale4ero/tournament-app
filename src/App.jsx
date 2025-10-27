@@ -9,6 +9,7 @@ import CreateTournamentPage from './pages/CreateTournamentPage';
 import ManageBracketPage from './pages/ManageBracketPage';
 import TournamentView from './pages/TournamentView';
 import MatchPage from './pages/MatchPage';
+import ScoreboardPage from './pages/ScoreboardPage';
 import OrganizationSetupPage from './pages/OrganizationSetupPage';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/tournament/:id" element={<TournamentView />} />
           <Route path="/match/:matchId" element={<MatchPage />} />
+          <Route path="/match/:matchId/scoreboard" element={<ScoreboardPage />} />
 
           {/* Admin Routes */}
           <Route path="/organization/setup" element={<OrganizationSetupPage />} />

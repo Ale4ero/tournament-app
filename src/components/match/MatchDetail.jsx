@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime } from '../../utils/tournamentStatus';
 import { MATCH_STATUS } from '../../utils/constants';
@@ -10,6 +11,7 @@ import EditScoreForm from './EditScoreForm';
 
 export default function MatchDetail({ match, tournament }) {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
 
   if (!match) {
@@ -141,6 +143,34 @@ export default function MatchDetail({ match, tournament }) {
       {isAdmin && isEditing && match.status === MATCH_STATUS.COMPLETED && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <EditScoreForm match={match} onCancel={() => setIsEditing(false)} />
+        </div>
+      )}
+
+      {/* Interactive Scoreboard - Available for ALL users */}
+      {match.status !== MATCH_STATUS.COMPLETED && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-sm p-6 text-white">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold mb-2">Interactive Scoreboard</h3>
+              <p className="text-green-50 text-sm">
+                Launch the live scoreboard to track points in real-time during the match
+              </p>
+            </div>
+            <button
+              onClick={() => navigate(`/match/${match.id}/scoreboard`)}
+              className="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-lg transition-colors shadow-lg flex items-center gap-2 whitespace-nowrap"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              Referee Match
+            </button>
+          </div>
         </div>
       )}
 

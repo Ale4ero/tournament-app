@@ -44,6 +44,7 @@ export const DB_PATHS = {
   MATCHES: 'matches',
   SUBMISSIONS: 'submissions',
   USERS: 'users',
+  SCOREBOARDS: 'scoreboards',
 };
 
 // Default match rules for volleyball
@@ -52,4 +53,17 @@ export const DEFAULT_MATCH_RULES = {
   winBy: 2,
   cap: 30,
   bestOf: 3,
+};
+
+// Scoreboard statuses
+export const SCOREBOARD_STATUS = {
+  ACTIVE: 'active',
+  REVIEW: 'review',
+  COMPLETED: 'completed',
+};
+
+// Team colors for scoreboard
+export const TEAM_COLORS = {
+  RED: 'red',
+  BLUE: 'blue',
 };
