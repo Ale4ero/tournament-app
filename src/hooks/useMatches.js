@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { subscribeMatches, subscribeMatch, subscribeSubmissions } from '../services/match.service';
+import { subscribeMatches, subscribeMatch, subscribeSubmissions, subscribeAllSubmissions } from '../services/match.service';
 
 /**
  * Hook to subscribe to all matches for a tournament
@@ -70,6 +70,32 @@ export function useSubmissions(matchId) {
     }
 
     const unsubscribe = subscribeSubmissions(matchId, (data) => {
+      setSubmissions(data);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [matchId]);
+
+  return { submissions, loading };
+}
+
+/**
+ * Hook to subscribe to all submissions for a match (pending, approved, rejected)
+ * @param {string} matchId - Match ID
+ * @returns {Object} { submissions, loading }
+ */
+export function useAllSubmissions(matchId) {
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!matchId) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = subscribeAllSubmissions(matchId, (data) => {
       setSubmissions(data);
       setLoading(false);
     });

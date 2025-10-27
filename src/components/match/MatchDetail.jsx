@@ -4,6 +4,7 @@ import { MATCH_STATUS } from '../../utils/constants';
 import { getRoundName } from '../../utils/bracketGenerator';
 import ScoreSubmissionForm from './ScoreSubmissionForm';
 import ScoreApprovalPanel from './ScoreApprovalPanel';
+import AdminScoreSubmissionForm from './AdminScoreSubmissionForm';
 
 export default function MatchDetail({ match, tournament }) {
   const { isAdmin } = useAuth();
@@ -94,9 +95,15 @@ export default function MatchDetail({ match, tournament }) {
 
       {/* Admin Panel */}
       {isAdmin && match.status !== MATCH_STATUS.COMPLETED && (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <ScoreApprovalPanel match={match} />
-        </div>
+        <>
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <AdminScoreSubmissionForm match={match} />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <ScoreApprovalPanel match={match} />
+          </div>
+        </>
       )}
 
       {/* Public Score Submission */}

@@ -252,6 +252,90 @@ export async function rejectScore(matchId, submissionId) {
 }
 
 /**
+ * Submit score directly as admin (bypasses approval process)
+ * @param {string} tournamentId - Tournament ID
+ * @param {string} matchId - Match ID
+ * @param {number} score1 - Team 1 score
+ * @param {number} score2 - Team 2 score
+ * @param {string} adminUid - Admin user ID
+ * @returns {Promise<void>}
+ */
+export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, adminUid) {
+  try {
+    const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${matchId}`);
+    const matchSnapshot = await get(matchRef);
+
+    if (!matchSnapshot.exists()) {
+      throw new Error('Match not found');
+    }
+
+    const match = matchSnapshot.val();
+    const winner = determineWinner(score1, score2, match.team1, match.team2);
+
+    // Update match with scores
+    await update(matchRef, {
+      score1,
+      score2,
+      winner,
+      status: MATCH_STATUS.COMPLETED,
+      approvedAt: Date.now(),
+      approvedBy: adminUid,
+    });
+
+    // Advance winner to next match if exists
+    if (winner && match.nextMatchId) {
+      console.log('Advancing winner:', winner, 'to match:', match.nextMatchId);
+      const allMatches = await getMatchesByTournament(tournamentId);
+      const updatedMatch = {
+        ...match,
+        score1,
+        score2,
+        winner,
+        status: MATCH_STATUS.COMPLETED,
+      };
+
+      console.log('Updated match data:', updatedMatch);
+      const nextMatch = advanceWinner(updatedMatch, allMatches);
+      console.log('Next match after advancement:', nextMatch);
+
+      if (nextMatch) {
+        const nextMatchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${nextMatch.id}`);
+
+        // Only update the field that changed (team1 or team2)
+        const updates = {};
+        if (updatedMatch.isTeam1Winner === true) {
+          updates.team1 = nextMatch.team1;
+        } else if (updatedMatch.isTeam1Winner === false) {
+          updates.team2 = nextMatch.team2;
+        }
+
+        console.log('Updating next match with:', updates);
+        await update(nextMatchRef, updates);
+        console.log('Successfully advanced winner to next match');
+      } else {
+        console.log('No next match found');
+      }
+    }
+
+    // Update tournament status based on match completion
+    const allMatches = await getMatchesByTournament(tournamentId);
+    const allCompleted = allMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
+    const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
+
+    if (allCompleted) {
+      console.log('All matches completed - updating tournament to completed');
+      await updateTournament(tournamentId, { status: 'completed' });
+    } else if (anyCompleted) {
+      console.log('Tournament has active matches - updating to live');
+      await updateTournament(tournamentId, { status: 'live' });
+    }
+  } catch (error) {
+    console.error('Error submitting score as admin:', error);
+    throw error;
+  }
+}
+
+/**
  * Update match directly (admin only)
  * @param {string} tournamentId - Tournament ID
  * @param {string} matchId - Match ID
@@ -358,6 +442,29 @@ export function subscribeSubmissions(matchId, callback) {
       if (submission.status === SUBMISSION_STATUS.PENDING) {
         submissions.push(submission);
       }
+    });
+
+    callback(submissions.sort((a, b) => b.submittedAt - a.submittedAt));
+  });
+}
+
+/**
+ * Subscribe to all submissions for a match (including pending, approved, rejected)
+ * @param {string} matchId - Match ID
+ * @param {Function} callback - Callback function with submissions array
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeAllSubmissions(matchId, callback) {
+  const submissionsRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}`);
+  return onValue(submissionsRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+
+    const submissions = [];
+    snapshot.forEach((child) => {
+      submissions.push(child.val());
     });
 
     callback(submissions.sort((a, b) => b.submittedAt - a.submittedAt));
