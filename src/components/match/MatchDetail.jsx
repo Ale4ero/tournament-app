@@ -95,6 +95,35 @@ export default function MatchDetail({ match, tournament }) {
           </div>
         )}
 
+        {/* Match Rules */}
+        {match.rules && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Match Rules</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">First To</p>
+                <p className="text-lg font-bold text-gray-900">{match.rules.firstTo}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Win By</p>
+                <p className="text-lg font-bold text-gray-900">{match.rules.winBy}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Score Cap</p>
+                <p className="text-lg font-bold text-gray-900">{match.rules.cap}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-600 mb-1">Best Of</p>
+                <p className="text-lg font-bold text-gray-900">{match.rules.bestOf}</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mt-3">
+              Best of {match.rules.bestOf} sets. First to {match.rules.firstTo} points,
+              must win by {match.rules.winBy}, capped at {match.rules.cap}.
+            </p>
+          </div>
+        )}
+
         {/* Admin Edit Button */}
         {isAdmin && match.status === MATCH_STATUS.COMPLETED && !isEditing && (
           <div className="mt-6 pt-6 border-t border-gray-200">
