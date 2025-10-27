@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getMatch } from '../services/match.service';
@@ -6,6 +6,7 @@ import { createScoreboard, deleteScoreboard } from '../services/scoreboard.servi
 import useScoreboardLogic from '../components/scoreboard/useScoreboardLogic';
 import ScoreSide from '../components/scoreboard/ScoreSide';
 import ReviewScoreModal from '../components/scoreboard/ReviewScoreModal';
+import SetCompletedModal from '../components/scoreboard/SetCompletedModal';
 
 /**
  * ScoreboardPage - Full-screen interactive scoreboard
@@ -20,7 +21,10 @@ export default function ScoreboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showSetCompletedModal, setShowSetCompletedModal] = useState(false);
+  const [completedSetData, setCompletedSetData] = useState(null);
   const [initializing, setInitializing] = useState(false);
+  const previousSetWinnerRef = useRef(null);
 
   const {
     scoreboard,
@@ -32,6 +36,7 @@ export default function ScoreboardPage() {
     incrementScore,
     decrementScore,
     resetSet,
+    getCurrentSet,
     getCurrentScores,
     getSetsWon,
     getWinnerName,
@@ -48,10 +53,33 @@ export default function ScoreboardPage() {
     loadMatchAndScoreboard();
   }, [matchId]);
 
+  // Detect when a set is completed
+  useEffect(() => {
+    if (!scoreboard || !isActive) return;
+
+    const currentSet = scoreboard.sets[scoreboard.currentSet - 1];
+
+    // Check if current set has a winner and we haven't shown the modal yet
+    if (currentSet?.winner && currentSet.winner !== previousSetWinnerRef.current) {
+      previousSetWinnerRef.current = currentSet.winner;
+      setCompletedSetData({
+        setNumber: currentSet.setNumber,
+        ...currentSet,
+      });
+      setShowSetCompletedModal(true);
+    }
+
+    // Reset the ref when moving to a new set without a winner
+    if (!currentSet?.winner) {
+      previousSetWinnerRef.current = null;
+    }
+  }, [scoreboard, isActive]);
+
   // Show review modal when scoreboard enters review status
   useEffect(() => {
     if (isInReview && !showReviewModal) {
       setShowReviewModal(true);
+      setShowSetCompletedModal(false); // Hide set completed modal if review modal is shown
     }
   }, [isInReview]);
 
@@ -101,6 +129,18 @@ export default function ScoreboardPage() {
     if (window.confirm('Are you sure you want to reset the current set to 0-0?')) {
       await resetSet();
     }
+  };
+
+  const handleSetCompletedAdvance = () => {
+    // Close the modal - the backend will automatically handle advancement or match completion
+    setShowSetCompletedModal(false);
+    setCompletedSetData(null);
+  };
+
+  const handleSetCompletedReset = async () => {
+    setShowSetCompletedModal(false);
+    setCompletedSetData(null);
+    await resetSet();
   };
 
   const handleQuit = async () => {
@@ -243,6 +283,17 @@ export default function ScoreboardPage() {
       <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-white text-gray-900 px-4 py-2 rounded-full shadow-lg font-bold text-sm z-20">
         Current Set: {scoreboard.currentSet}/{scoreboard.rules.bestOf}
       </div>
+
+      {/* Set Completed Modal */}
+      {showSetCompletedModal && completedSetData && (
+        <SetCompletedModal
+          scoreboard={scoreboard}
+          setNumber={completedSetData.setNumber}
+          setData={completedSetData}
+          onAdvance={handleSetCompletedAdvance}
+          onReset={handleSetCompletedReset}
+        />
+      )}
 
       {/* Review Modal */}
       {showReviewModal && (
