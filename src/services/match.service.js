@@ -522,3 +522,133 @@ export function subscribeAllSubmissions(matchId, callback) {
     callback(submissions.sort((a, b) => b.submittedAt - a.submittedAt));
   });
 }
+
+/**
+ * Edit the final score of a completed match (admin only)
+ * This function handles re-calculating winners and updating subsequent matches
+ * @param {string} tournamentId - Tournament ID
+ * @param {string} matchId - Match ID
+ * @param {number} newScore1 - New score for team 1
+ * @param {number} newScore2 - New score for team 2
+ * @param {string} adminUid - Admin user ID
+ * @returns {Promise<void>}
+ */
+export async function editMatchScore(tournamentId, matchId, newScore1, newScore2, adminUid) {
+  try {
+    // Get the current match
+    const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${matchId}`);
+    const matchSnapshot = await get(matchRef);
+
+    if (!matchSnapshot.exists()) {
+      throw new Error('Match not found');
+    }
+
+    const match = matchSnapshot.val();
+    const oldWinner = match.winner;
+
+    // Determine new winner
+    const newWinner = determineWinner(newScore1, newScore2, match.team1, match.team2);
+
+    // Update the match with new scores
+    await update(matchRef, {
+      score1: newScore1,
+      score2: newScore2,
+      winner: newWinner,
+      status: MATCH_STATUS.COMPLETED,
+      approvedAt: Date.now(),
+      approvedBy: adminUid,
+    });
+
+    // If winner changed and there's a next match, we need to update the bracket
+    if (oldWinner !== newWinner && match.nextMatchId) {
+      console.log('Winner changed from', oldWinner, 'to', newWinner);
+
+      // Get all matches to handle advancement
+      const allMatches = await getMatchesByTournament(tournamentId);
+      const nextMatch = allMatches.find(m => m.id === match.nextMatchId);
+
+      if (nextMatch) {
+        // Determine which slot in the next match needs to be updated
+        const updates = {};
+        if (match.isTeam1Winner === true) {
+          // This match's winner goes to team1 slot of next match
+          updates.team1 = newWinner || null;
+        } else if (match.isTeam1Winner === false) {
+          // This match's winner goes to team2 slot of next match
+          updates.team2 = newWinner || null;
+        }
+
+        // If the next match was already completed, we need to clear it
+        // and cascade the changes down the bracket
+        if (nextMatch.status === MATCH_STATUS.COMPLETED) {
+          console.log('Next match was completed - clearing it and cascading changes');
+          await clearMatchAndDescendants(tournamentId, nextMatch, allMatches);
+        }
+
+        // Update the next match with new winner
+        const nextMatchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${nextMatch.id}`);
+        console.log('Updating next match with:', updates);
+        await update(nextMatchRef, updates);
+      }
+    }
+
+    // Update tournament status based on match completion
+    const allMatches = await getMatchesByTournament(tournamentId);
+    const allCompleted = allMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
+    const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
+
+    if (allCompleted) {
+      console.log('All matches completed - updating tournament to completed');
+      await updateTournament(tournamentId, { status: 'completed' });
+    } else if (anyCompleted) {
+      console.log('Tournament has active matches - updating to live');
+      await updateTournament(tournamentId, { status: 'live' });
+    }
+  } catch (error) {
+    console.error('Error editing match score:', error);
+    throw error;
+  }
+}
+
+/**
+ * Clear a match and all its descendant matches in the bracket
+ * Used when editing a score that affects subsequent matches
+ * @param {string} tournamentId - Tournament ID
+ * @param {Object} match - The match to clear
+ * @param {Object[]} allMatches - All matches in the tournament
+ * @returns {Promise<void>}
+ */
+async function clearMatchAndDescendants(tournamentId, match, allMatches) {
+  // Clear this match
+  const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${match.id}`);
+  await update(matchRef, {
+    score1: null,
+    score2: null,
+    winner: null,
+    status: MATCH_STATUS.UPCOMING,
+    approvedAt: null,
+    approvedBy: null,
+  });
+
+  // If this match feeds into another match, recursively clear descendants
+  if (match.nextMatchId) {
+    const nextMatch = allMatches.find(m => m.id === match.nextMatchId);
+    if (nextMatch && nextMatch.status === MATCH_STATUS.COMPLETED) {
+      await clearMatchAndDescendants(tournamentId, nextMatch, allMatches);
+    } else if (nextMatch) {
+      // Just clear the team slot in the next match
+      const nextMatchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${nextMatch.id}`);
+      const updates = {};
+
+      if (match.isTeam1Winner === true && nextMatch.team1 === match.winner) {
+        updates.team1 = null;
+      } else if (match.isTeam1Winner === false && nextMatch.team2 === match.winner) {
+        updates.team2 = null;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await update(nextMatchRef, updates);
+      }
+    }
+  }
+}

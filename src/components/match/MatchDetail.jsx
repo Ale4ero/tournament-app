@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime } from '../../utils/tournamentStatus';
 import { MATCH_STATUS } from '../../utils/constants';
@@ -5,9 +6,11 @@ import { getRoundName } from '../../utils/bracketGenerator';
 import ScoreSubmissionForm from './ScoreSubmissionForm';
 import ScoreApprovalPanel from './ScoreApprovalPanel';
 import AdminScoreSubmissionForm from './AdminScoreSubmissionForm';
+import EditScoreForm from './EditScoreForm';
 
 export default function MatchDetail({ match, tournament }) {
   const { isAdmin } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
 
   if (!match) {
     return (
@@ -91,7 +94,26 @@ export default function MatchDetail({ match, tournament }) {
             )}
           </div>
         )}
+
+        {/* Admin Edit Button */}
+        {isAdmin && match.status === MATCH_STATUS.COMPLETED && !isEditing && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              Edit Score
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Admin Edit Form */}
+      {isAdmin && isEditing && match.status === MATCH_STATUS.COMPLETED && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <EditScoreForm match={match} onCancel={() => setIsEditing(false)} />
+        </div>
+      )}
 
       {/* Admin Panel */}
       {isAdmin && match.status !== MATCH_STATUS.COMPLETED && (
