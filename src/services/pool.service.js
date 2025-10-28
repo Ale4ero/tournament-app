@@ -209,8 +209,16 @@ export async function initializePoolStandings(tournamentId, poolId, teams, teamS
  */
 export async function updatePoolStandings(tournamentId, poolId, match, poolConfig) {
   try {
+    console.log('=== updatePoolStandings called ===');
+    console.log('Tournament ID:', tournamentId);
+    console.log('Pool ID:', poolId);
+    console.log('Match data:', match);
+    console.log('Pool config:', poolConfig);
+
     const { team1, team2, score1, score2, winner, setScores } = match;
     const { pointsPerWin = 3, pointsPerLoss = 0, pointsPerTie = 1 } = poolConfig;
+
+    console.log('Extracted match data:', { team1, team2, score1, score2, winner, setScores });
 
     // Calculate set wins and point totals from setScores
     let team1SetsWon = score1;
@@ -221,8 +229,9 @@ export async function updatePoolStandings(tournamentId, poolId, match, poolConfi
     if (setScores && setScores.length > 0) {
       setScores.forEach((set) => {
         if (set.winner) {
-          team1PointsFor += set.team1Score;
-          team2PointsFor += set.team2Score;
+          // Handle both formats: team1Score/team2Score (from scoreboard) and score1/score2 (from submission)
+          team1PointsFor += set.team1Score || set.score1 || 0;
+          team2PointsFor += set.team2Score || set.score2 || 0;
         }
       });
     }

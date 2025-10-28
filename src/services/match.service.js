@@ -480,6 +480,33 @@ export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, 
       }
     }
 
+    // Check if this is a pool match - if so, update pool standings
+    if (match.matchType === MATCH_TYPE.POOL && match.poolId) {
+      console.log('Pool match detected - updating pool standings for pool:', match.poolId);
+      try {
+        // Get tournament to access pool configuration
+        const tournament = await getTournamentById(tournamentId);
+        if (tournament && tournament.poolConfig) {
+          await updatePoolStandings(
+            tournamentId,
+            match.poolId,
+            {
+              ...match,
+              score1,
+              score2,
+              winner,
+              setScores
+            },
+            tournament.poolConfig
+          );
+          console.log('Pool standings updated successfully');
+        }
+      } catch (poolError) {
+        console.error('Error updating pool standings:', poolError);
+        // Don't fail the entire submission if pool update fails
+      }
+    }
+
     // Advance winner to next match if exists
     if (winner && match.nextMatchId) {
       console.log('Advancing winner:', winner, 'to match:', match.nextMatchId);
@@ -675,13 +702,22 @@ export function subscribeAllSubmissions(matchId, callback) {
 export async function updateMatchRules(tournamentId, matchId, rules) {
   try {
     const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${matchId}`);
+
+    // Build rules object with all possible fields
+    const rulesUpdate = {
+      firstTo: rules.firstTo,
+      winBy: rules.winBy,
+      cap: rules.cap,
+      bestOf: rules.bestOf,
+    };
+
+    // Include numSets if provided (for pool matches)
+    if (rules.numSets !== undefined) {
+      rulesUpdate.numSets = rules.numSets;
+    }
+
     await update(matchRef, {
-      rules: {
-        firstTo: rules.firstTo,
-        winBy: rules.winBy,
-        cap: rules.cap,
-        bestOf: rules.bestOf,
-      },
+      rules: rulesUpdate,
     });
   } catch (error) {
     console.error('Error updating match rules:', error);
@@ -724,6 +760,33 @@ export async function editMatchScore(tournamentId, matchId, newScore1, newScore2
       approvedAt: Date.now(),
       approvedBy: adminUid,
     });
+
+    // Check if this is a pool match - if so, update pool standings
+    if (match.matchType === MATCH_TYPE.POOL && match.poolId) {
+      console.log('Pool match detected - updating pool standings for pool:', match.poolId);
+      try {
+        // Get tournament to access pool configuration
+        const tournament = await getTournamentById(tournamentId);
+        if (tournament && tournament.poolConfig) {
+          await updatePoolStandings(
+            tournamentId,
+            match.poolId,
+            {
+              ...match,
+              score1: newScore1,
+              score2: newScore2,
+              winner: newWinner,
+              setScores: match.setScores
+            },
+            tournament.poolConfig
+          );
+          console.log('Pool standings updated successfully after score edit');
+        }
+      } catch (poolError) {
+        console.error('Error updating pool standings:', poolError);
+        // Don't fail the entire edit if pool update fails
+      }
+    }
 
     // If winner changed and there's a next match, we need to update the bracket
     if (oldWinner !== newWinner && match.nextMatchId) {
