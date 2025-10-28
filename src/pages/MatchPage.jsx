@@ -69,11 +69,20 @@ export default function MatchPage() {
     );
   }
 
+  // Determine which tab to link to based on match type
+  const getBackLink = () => {
+    if (!tournament) return '/';
+
+    // If it's a pool match, go to pools tab; otherwise go to playoffs tab
+    const tab = match?.matchType === 'pool' ? 'pools' : 'playoffs';
+    return `/tournament/${tournament.id}?tab=${tab}`;
+  };
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link
-          to={tournament ? `/tournament/${tournament.id}` : '/'}
+          to={getBackLink()}
           className="text-primary-600 hover:text-primary-700 mb-6 inline-block"
         >
           ← Back to {tournament ? 'Bracket' : 'Tournaments'}

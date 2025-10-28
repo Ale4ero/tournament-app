@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
@@ -13,7 +13,18 @@ export default function TournamentView() {
   const { id } = useParams();
   const { tournament, loading } = useTournament(id);
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState('pools'); // 'pools' | 'playoffs'
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Get tab from URL or default to 'pools'
+  const tabFromUrl = searchParams.get('tab') || 'pools';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+  // Update URL when tab changes
+  useEffect(() => {
+    if (activeTab !== tabFromUrl) {
+      setSearchParams({ tab: activeTab });
+    }
+  }, [activeTab, tabFromUrl, setSearchParams]);
 
   if (loading) {
     return (
