@@ -7,6 +7,7 @@ export default function AdminScoreSubmissionForm({ match }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Set-based scoring state
   const [setScores, setSetScores] = useState([]);
@@ -197,7 +198,30 @@ export default function AdminScoreSubmissionForm({ match }) {
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-lg font-bold mb-4">Submit Score (Admin)</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold">Submit Score (Admin)</h3>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+        >
+          {isExpanded ? (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+              Collapse
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              Expand
+            </>
+          )}
+        </button>
+      </div>
 
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
@@ -211,7 +235,8 @@ export default function AdminScoreSubmissionForm({ match }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {isExpanded && (
+        <form onSubmit={handleSubmit} className="space-y-4">
         {/* Match Rules Info */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
           <h4 className="font-semibold text-green-900 mb-1">Match Rules</h4>
@@ -276,6 +301,7 @@ export default function AdminScoreSubmissionForm({ match }) {
           As an admin, this will immediately complete the match and advance the winner.
         </p>
       </form>
+      )}
     </div>
   );
 }
