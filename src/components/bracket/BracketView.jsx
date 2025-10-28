@@ -26,8 +26,8 @@ export default function BracketView({ tournamentId }) {
     );
   }
 
-  // Get all rounds
-  const rounds = [...new Set(playoffMatches.map((m) => m.round))].sort((a, b) => a - b);
+  // Get all rounds (sort descending so earlier rounds appear first, finals on right)
+  const rounds = [...new Set(playoffMatches.map((m) => m.round))].sort((a, b) => b - a);
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
