@@ -60,7 +60,7 @@ export default function PoolTable({ tournamentId, poolId }) {
               <td className="px-4 py-3 text-sm font-semibold text-gray-900">
                 {standing.team}
                 {standing.tournamentSeed && (
-                  <span className="ml-2 text-xs text-blue-500 font-medium">(Seed #{standing.tournamentSeed})</span>
+                  <span className="ml-2 text-xs text-blue-500 font-medium">(#{standing.tournamentSeed})</span>
                 )}
                 {standing.playoffSeed && (
                   <span className="ml-2 text-xs text-gray-500">(Playoff Seed #{standing.playoffSeed})</span>
@@ -111,6 +111,7 @@ export default function PoolTable({ tournamentId, poolId }) {
         <div className="flex items-center gap-1">
           <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
           <span>Advances to playoffs</span>
+          <span className="ml-2 text-xs text-blue-500 font-medium">(Seed #)</span>
         </div>
       </div>
     </div>
