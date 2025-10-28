@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatDate } from '../../utils/tournamentStatus';
-import { TOURNAMENT_STATUS } from '../../utils/constants';
+import { TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../../utils/constants';
 import { useOrganization } from '../../hooks/useOrganization';
 
 export default function TournamentCard({ tournament }) {
@@ -17,6 +17,14 @@ export default function TournamentCard({ tournament }) {
 
   const getStatusText = (status) => {
     return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const formatTournamentType = (type) => {
+    const typeMap = {
+      [TOURNAMENT_TYPE.SINGLE_ELIMINATION]: 'Playoffs Bracket',
+      [TOURNAMENT_TYPE.POOL_PLAY_BRACKET]: 'Pool Play + Playoffs',
+    };
+    return typeMap[type] || type.replace('-', ' ');
   };
 
   return (
@@ -51,7 +59,7 @@ export default function TournamentCard({ tournament }) {
 
           <div className="flex items-center">
             <span className="font-medium w-24">Type:</span>
-            <span className="capitalize">{tournament.type.replace('-', ' ')}</span>
+            <span>{formatTournamentType(tournament.type)}</span>
           </div>
         </div>
 

@@ -193,8 +193,9 @@ export async function createPoolPlayTournamentFromDraft(draftId, poolConfig, pla
 
     await set(tournamentRef, tournament);
 
-    // Create pools and distribute teams
-    const poolAssignments = await createPools(tournamentId, draft.teams, poolConfig.numPools);
+    // Create pools and distribute teams using seed order if available
+    const seedOrder = draft.seedOrder || draft.teams; // Use seed order if it exists, otherwise use teams array
+    const poolAssignments = await createPools(tournamentId, draft.teams, poolConfig.numPools, seedOrder);
 
     // Generate matches for each pool
     for (const [poolId, poolTeams] of Object.entries(poolAssignments)) {

@@ -136,8 +136,8 @@ export default function TournamentForm({ onSuccess }) {
             onChange={handleChange}
             className="input-field"
           >
-            <option value={TOURNAMENT_TYPE.SINGLE_ELIMINATION}>Single Elimination</option>
-            <option value={TOURNAMENT_TYPE.POOL_PLAY_BRACKET}>Pool Play + Bracket</option>
+            <option value={TOURNAMENT_TYPE.SINGLE_ELIMINATION}>Playoffs Bracket</option>
+            <option value={TOURNAMENT_TYPE.POOL_PLAY_BRACKET}>Pool Play + Playoffs</option>
           </select>
         </div>
 

@@ -4,6 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
 import { getTournamentDraft, createPoolPlayTournamentFromDraft } from '../services/tournament.service';
 import { DEFAULT_POOL_CONFIG } from '../utils/constants';
+import CollapsibleCard from '../components/pools/CollapsibleCard';
+import TeamSeedingList from '../components/pools/TeamSeedingList';
+import useSeeding from '../components/pools/useSeeding';
 
 /**
  * PoolSetupPage - Configure pool settings before creating tournament
@@ -32,6 +35,15 @@ export default function PoolSetupPage() {
       quarterfinals: { firstTo: 25, winBy: 2, cap: 30, bestOf: 3 },
     },
   });
+
+  // Team seeding hook
+  const {
+    seededTeams,
+    updateTeams,
+    resetAlphabetically,
+    randomize,
+    saveSeedOrder,
+  } = useSeeding(draftId, draft?.seedOrder || draft?.teams || []);
 
   useEffect(() => {
     loadDraft();
@@ -65,6 +77,29 @@ export default function PoolSetupPage() {
       ...prev,
       poolMatchRules: { ...prev.poolMatchRules, [field]: parseInt(value, 10) },
     }));
+  };
+
+  const handleSeedingReorder = (reorderedTeams) => {
+    // Update local state with the new order
+    updateTeams(reorderedTeams);
+    // Auto-save to Firebase
+    saveSeedOrder(reorderedTeams).catch(err => {
+      console.error('Failed to save seed order:', err);
+    });
+  };
+
+  const handleResetAlphabetically = () => {
+    const sorted = resetAlphabetically();
+    saveSeedOrder(sorted).catch(err => {
+      console.error('Failed to save seed order:', err);
+    });
+  };
+
+  const handleRandomize = () => {
+    const shuffled = randomize();
+    saveSeedOrder(shuffled).catch(err => {
+      console.error('Failed to save seed order:', err);
+    });
   };
 
   const handleCreateTournament = async () => {
@@ -177,7 +212,7 @@ export default function PoolSetupPage() {
               <span className="font-medium">Total Teams:</span> {draft.teams.length}
             </div>
             <div>
-              <span className="font-medium">Type:</span> Pool Play + Bracket
+              <span className="font-medium">Type:</span> Pool Play + Playoffs
             </div>
           </div>
         </div>
@@ -312,6 +347,20 @@ export default function PoolSetupPage() {
               </div>
             </div>
           </div>
+
+          {/* Team Seeding Section */}
+          <CollapsibleCard
+            title="Configure Team Seeding"
+            summary={`Teams Ranked: ${seededTeams.length}`}
+            defaultExpanded={false}
+          >
+            <TeamSeedingList
+              teams={seededTeams}
+              onReorder={handleSeedingReorder}
+              onResetAlphabetically={handleResetAlphabetically}
+              onRandomize={handleRandomize}
+            />
+          </CollapsibleCard>
 
           {/* Summary */}
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">

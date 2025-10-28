@@ -9,6 +9,15 @@ import AdvanceToPlayoffsButton from '../components/pools/AdvanceToPlayoffsButton
 import { formatDate } from '../utils/tournamentStatus';
 import { TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../utils/constants';
 
+// Helper function to format tournament type display names
+const formatTournamentType = (type) => {
+  const typeMap = {
+    [TOURNAMENT_TYPE.SINGLE_ELIMINATION]: 'Playoffs Bracket',
+    [TOURNAMENT_TYPE.POOL_PLAY_BRACKET]: 'Pool Play + Playoffs',
+  };
+  return typeMap[type] || type.replace('-', ' ');
+};
+
 export default function TournamentView() {
   const { id } = useParams();
   const { tournament, loading } = useTournament(id);
@@ -111,8 +120,8 @@ export default function TournamentView() {
 
             <div className="bg-white rounded-lg shadow-sm p-4">
               <p className="text-sm text-gray-600 mb-1">Format</p>
-              <p className="text-lg font-semibold text-gray-900 capitalize">
-                {tournament.type.replace('-', ' ')}
+              <p className="text-lg font-semibold text-gray-900">
+                {formatTournamentType(tournament.type)}
               </p>
             </div>
           </div>

@@ -4,34 +4,69 @@ import { DB_PATHS, MATCH_STATUS } from '../utils/constants';
 import { generateSingleEliminationBracket } from '../utils/bracketGenerator';
 
 /**
- * Create pools and distribute teams evenly
+ * Apply snake seeding to distribute teams across pools
+ * @param {Array<string>} teams - Seeded array of team names
+ * @param {number} numPools - Number of pools
+ * @returns {Array<Array<string>>} Array of pools with teams
+ */
+function applySnakeSeeding(teams, numPools) {
+  const pools = Array.from({ length: numPools }, () => []);
+  let currentPool = 0;
+  let direction = 1; // 1 for forward, -1 for backward
+
+  for (let i = 0; i < teams.length; i++) {
+    pools[currentPool].push(teams[i]);
+
+    // Move to next pool
+    if (direction === 1) {
+      if (currentPool === numPools - 1) {
+        direction = -1;
+      } else {
+        currentPool++;
+      }
+    } else {
+      if (currentPool === 0) {
+        direction = 1;
+      } else {
+        currentPool--;
+      }
+    }
+  }
+
+  return pools;
+}
+
+/**
+ * Create pools and distribute teams
  * @param {string} tournamentId - Tournament ID
  * @param {Array<string>} teams - Array of team names
  * @param {number} numPools - Number of pools to create
+ * @param {Array<string>} seedOrder - Optional seed order for snake seeding
  * @returns {Promise<Object>} Pool assignments { poolId: [teams] }
  */
-export async function createPools(tournamentId, teams, numPools) {
+export async function createPools(tournamentId, teams, numPools, seedOrder = null) {
   try {
     if (teams.length < numPools) {
       throw new Error('Number of pools cannot exceed number of teams');
     }
 
-    // Distribute teams evenly across pools
-    const teamsPerPool = Math.floor(teams.length / numPools);
-    const remainder = teams.length % numPools;
+    let poolTeamsArray;
 
-    const shuffledTeams = [...teams].sort(() => Math.random() - 0.5); // Shuffle for fairness
+    // Use snake seeding if seed order is provided
+    if (seedOrder && seedOrder.length === teams.length) {
+      poolTeamsArray = applySnakeSeeding(seedOrder, numPools);
+    } else {
+      // Fallback to random distribution (legacy behavior)
+      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
+      poolTeamsArray = applySnakeSeeding(shuffledTeams, numPools);
+    }
+
     const poolAssignments = {};
-    let teamIndex = 0;
 
     for (let i = 0; i < numPools; i++) {
-      const poolId = `pool_${String.fromCharCode(65 + i)}`; // pool_A, pool_B, etc.
+      const poolId = `pool_${String.fromCharCode(65 + i)}`;
       const poolName = `Pool ${String.fromCharCode(65 + i)}`;
-
-      // Pools with remainder get one extra team
-      const teamsInThisPool = teamsPerPool + (i < remainder ? 1 : 0);
-      const poolTeams = shuffledTeams.slice(teamIndex, teamIndex + teamsInThisPool);
-      teamIndex += teamsInThisPool;
+      const poolTeams = poolTeamsArray[i];
 
       // Calculate total matches for round robin: n*(n-1)/2
       const totalMatches = (poolTeams.length * (poolTeams.length - 1)) / 2;
