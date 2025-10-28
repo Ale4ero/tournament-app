@@ -85,14 +85,14 @@ export default function ScoreApprovalPanel({ match }) {
               <div className="space-y-2">
                 {submission.setScores.map((set, index) => (
                   <div key={index} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Set {set.set}</span>
+                    <span className="text-gray-600">Set {set.set || index + 1}</span>
                     <div className="flex items-center gap-2">
                       <span className={`font-semibold ${set.winner === submission.team1 ? 'text-green-700' : 'text-gray-600'}`}>
-                        {set.score1}
+                        {set.score1 !== undefined ? set.score1 : '-'}
                       </span>
                       <span className="text-gray-400">-</span>
                       <span className={`font-semibold ${set.winner === submission.team2 ? 'text-green-700' : 'text-gray-600'}`}>
-                        {set.score2}
+                        {set.score2 !== undefined ? set.score2 : '-'}
                       </span>
                     </div>
                   </div>

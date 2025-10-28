@@ -317,6 +317,14 @@ export async function submitScoreboardResults(scoreboardId, userId) {
       score2 = firstSet ? firstSet.team2Score : 0;
     }
 
+    // Transform sets data to match expected format (score1, score2, set, winner)
+    const transformedSets = scoreboard.sets.map((set, index) => ({
+      set: set.setNumber || index + 1,
+      score1: set.team1Score,
+      score2: set.team2Score,
+      winner: set.winner === 'team1' ? scoreboard.team1 : (set.winner === 'team2' ? scoreboard.team2 : null),
+    }));
+
     // Create submission entry
     const submissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${scoreboard.matchId}/${Date.now()}`);
     await set(submissionRef, {
@@ -331,7 +339,7 @@ export async function submitScoreboardResults(scoreboardId, userId) {
       status: 'pending',
       source: 'scoreboard',
       scoreboardId,
-      setScores: scoreboard.sets,
+      setScores: transformedSets,
     });
 
     // Mark scoreboard as completed

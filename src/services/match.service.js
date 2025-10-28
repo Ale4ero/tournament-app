@@ -382,9 +382,33 @@ export async function approveScore(matchId, submissionId, adminUid) {
 export async function rejectScore(matchId, submissionId) {
   try {
     const submissionRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}/${submissionId}`);
-    await update(submissionRef, {
-      status: SUBMISSION_STATUS.REJECTED,
-    });
+    const submissionSnapshot = await get(submissionRef);
+
+    if (submissionSnapshot.exists()) {
+      const submission = submissionSnapshot.val();
+
+      // Mark submission as rejected
+      await update(submissionRef, {
+        status: SUBMISSION_STATUS.REJECTED,
+      });
+
+      // If submission came from a scoreboard, delete the scoreboard and clear match reference
+      if (submission.scoreboardId) {
+        try {
+          const scoreboardRef = ref(database, `${DB_PATHS.SCOREBOARDS}/${submission.scoreboardId}`);
+          await set(scoreboardRef, null); // Delete scoreboard
+
+          // Clear scoreboardId from match
+          const matchRef = ref(database, `${DB_PATHS.MATCHES}/${submission.tournamentId}/${matchId}`);
+          await update(matchRef, {
+            scoreboardId: null,
+            hasLiveScoreboard: false,
+          });
+        } catch (scoreboardError) {
+          console.warn('Could not delete scoreboard:', scoreboardError);
+        }
+      }
+    }
   } catch (error) {
     console.error('Error rejecting score:', error);
     throw error;

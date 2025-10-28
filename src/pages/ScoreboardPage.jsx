@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getMatch } from '../services/match.service';
-import { createScoreboard, deleteScoreboard } from '../services/scoreboard.service';
+import { createScoreboard, deleteScoreboard, getScoreboard } from '../services/scoreboard.service';
 import useScoreboardLogic from '../components/scoreboard/useScoreboardLogic';
+import { SCOREBOARD_STATUS } from '../utils/constants';
 import ScoreSide from '../components/scoreboard/ScoreSide';
 import ReviewScoreModal from '../components/scoreboard/ReviewScoreModal';
 import SetCompletedModal from '../components/scoreboard/SetCompletedModal';
@@ -22,6 +23,8 @@ export default function ScoreboardPage() {
   const [error, setError] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showSetCompletedModal, setShowSetCompletedModal] = useState(false);
+  const [showMatchRulesModal, setShowMatchRulesModal] = useState(false);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
   const [completedSetData, setCompletedSetData] = useState(null);
   const [initializing, setInitializing] = useState(false);
   const previousSetWinnerRef = useRef(null);
@@ -98,7 +101,21 @@ export default function ScoreboardPage() {
 
       // Check if match already has a scoreboard
       if (matchData.scoreboardId) {
-        setScoreboardId(matchData.scoreboardId);
+        // Check if the scoreboard is completed (from a rejected submission)
+        const existingScoreboard = await getScoreboard(matchData.scoreboardId);
+
+        if (existingScoreboard && existingScoreboard.status === SCOREBOARD_STATUS.COMPLETED) {
+          // Scoreboard is completed but submission was rejected - delete it and create new one
+          console.log('Deleting old completed scoreboard and creating new one');
+          await deleteScoreboard(matchData.scoreboardId);
+          await initializeScoreboard(matchData);
+        } else if (existingScoreboard) {
+          // Scoreboard exists and is active - use it
+          setScoreboardId(matchData.scoreboardId);
+        } else {
+          // Scoreboard doesn't exist (was deleted) - create new one
+          await initializeScoreboard(matchData);
+        }
       } else {
         // Create new scoreboard for any user
         await initializeScoreboard(matchData);
@@ -143,20 +160,41 @@ export default function ScoreboardPage() {
     await resetSet();
   };
 
-  const handleQuit = async () => {
-    if (
-      window.confirm(
-        'Are you sure you want to quit? The scoreboard will be deleted and all progress will be lost.'
-      )
-    ) {
-      try {
-        await deleteScoreboard(scoreboardId);
-        navigate(`/match/${matchId}`);
-      } catch (err) {
-        console.error('Error quitting scoreboard:', err);
-        alert('Failed to quit scoreboard');
-      }
+  const handleExit = () => {
+    // If match is already completed, just navigate away
+    if (isCompleted) {
+      navigate(`/match/${matchId}`);
+      return;
     }
+
+    // Check if any changes have been made (any set has scores recorded)
+    const hasChanges = scoreboard?.sets?.some(set =>
+      (set.team1Score > 0 || set.team2Score > 0)
+    );
+
+    // If no changes, just exit without confirmation
+    if (!hasChanges) {
+      handleExitWithoutSaving();
+      return;
+    }
+
+    // Otherwise, show confirmation modal
+    setShowExitConfirmModal(true);
+  };
+
+  const handleExitWithoutSaving = async () => {
+    try {
+      await deleteScoreboard(scoreboardId);
+      navigate(`/match/${matchId}`);
+    } catch (err) {
+      console.error('Error deleting scoreboard:', err);
+      alert('Failed to delete scoreboard');
+    }
+  };
+
+  const handleExitWithSaving = () => {
+    // Just navigate away, scoreboard is automatically saved
+    navigate(`/match/${matchId}`);
   };
 
   const handleSubmitSuccess = () => {
@@ -223,6 +261,15 @@ export default function ScoreboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowMatchRulesModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Rules
+            </button>
             {isActive && (
               <button
                 onClick={handleResetSet}
@@ -231,16 +278,8 @@ export default function ScoreboardPage() {
                 Reset Set
               </button>
             )}
-            {isActive && (
-              <button
-                onClick={handleQuit}
-                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-              >
-                Quit
-              </button>
-            )}
             <button
-              onClick={() => navigate(`/match/${matchId}`)}
+              onClick={handleExit}
               className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
             >
               {isCompleted ? 'Back to Match' : 'Exit'}
@@ -303,6 +342,104 @@ export default function ScoreboardPage() {
           onClose={() => setShowReviewModal(false)}
           onSuccess={handleSubmitSuccess}
         />
+      )}
+
+      {/* Match Rules Modal */}
+      {showMatchRulesModal && (
+        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-40 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Match Rules</h2>
+              <button
+                onClick={() => setShowMatchRulesModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <p className="text-sm text-blue-600 font-medium mb-1">Best Of</p>
+                  <p className="text-3xl font-bold text-blue-900">{scoreboard.rules.bestOf}</p>
+                  <p className="text-xs text-blue-700 mt-1">First to {Math.ceil(scoreboard.rules.bestOf / 2)} sets</p>
+                </div>
+
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <p className="text-sm text-green-600 font-medium mb-1">First To</p>
+                  <p className="text-3xl font-bold text-green-900">{scoreboard.rules.firstTo}</p>
+                  <p className="text-xs text-green-700 mt-1">points per set</p>
+                </div>
+
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <p className="text-sm text-purple-600 font-medium mb-1">Win By</p>
+                  <p className="text-3xl font-bold text-purple-900">{scoreboard.rules.winBy}</p>
+                  <p className="text-xs text-purple-700 mt-1">minimum point difference</p>
+                </div>
+
+                <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                  <p className="text-sm text-orange-600 font-medium mb-1">Score Cap</p>
+                  <p className="text-3xl font-bold text-orange-900">{scoreboard.rules.cap}</p>
+                  <p className="text-xs text-orange-700 mt-1">win by 1 at cap</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Summary</p>
+                <p className="text-sm text-gray-600">
+                  Best of {scoreboard.rules.bestOf} sets. First to {scoreboard.rules.firstTo} points per set.
+                  Must win by {scoreboard.rules.winBy} points. Score is capped at {scoreboard.rules.cap}
+                  (win by 1 at cap).
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowMatchRulesModal(false)}
+                className="w-full btn-primary"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Confirmation Modal */}
+      {showExitConfirmModal && (
+        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-40 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Exit Scoreboard?</h2>
+            <p className="text-gray-600 mb-6">
+              Do you want to save your progress or discard it?
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleExitWithSaving}
+                className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+              >
+                Save & Exit
+              </button>
+
+              <button
+                onClick={handleExitWithoutSaving}
+                className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+              >
+                Discard & Exit
+              </button>
+
+              <button
+                onClick={() => setShowExitConfirmModal(false)}
+                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Completed Overlay */}
