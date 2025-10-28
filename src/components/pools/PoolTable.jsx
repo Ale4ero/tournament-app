@@ -1,4 +1,5 @@
 import usePoolStandings from './usePoolStandings';
+import { useTournament } from '../../hooks/useTournament';
 
 /**
  * PoolTable - Displays standings table for a pool
@@ -7,6 +8,7 @@ import usePoolStandings from './usePoolStandings';
  */
 export default function PoolTable({ tournamentId, poolId }) {
   const { standings, loading } = usePoolStandings(tournamentId, poolId);
+  const { tournament } = useTournament(tournamentId);
 
   if (loading) {
     return <div className="text-gray-600 text-sm">Loading standings...</div>;
@@ -15,6 +17,9 @@ export default function PoolTable({ tournamentId, poolId }) {
   if (standings.length === 0) {
     return <div className="text-gray-600 text-sm">No standings available</div>;
   }
+
+  // Get number of teams that advance from pool config
+  const advancePerPool = tournament?.poolConfig?.advancePerPool || 2;
 
   return (
     <div className="overflow-x-auto">
@@ -42,21 +47,25 @@ export default function PoolTable({ tournamentId, poolId }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {standings.map((standing) => (
-            <tr
-              key={standing.team}
-              className={`hover:bg-gray-50 transition-colors ${
-                standing.advancesToPlayoffs ? 'bg-green-50' : ''
-              }`}
-            >
-              <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                {standing.rank}
-                {standing.advancesToPlayoffs && (
-                  <span className="ml-2 text-green-600" title="Advances to playoffs">
-                    ✓
-                  </span>
-                )}
-              </td>
+          {standings.map((standing) => {
+            // Check if this rank position advances to playoffs
+            const willAdvance = standing.rank > 0 && standing.rank <= advancePerPool;
+
+            return (
+              <tr
+                key={standing.team}
+                className={`hover:bg-gray-50 transition-colors ${
+                  willAdvance ? 'bg-green-50' : ''
+                }`}
+              >
+                <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  {standing.rank}
+                  {willAdvance && (
+                    <span className="ml-2 text-green-600" title="Advances to playoffs">
+                      ✓
+                    </span>
+                  )}
+                </td>
               <td className="px-4 py-3 text-sm font-semibold text-gray-900">
                 {standing.team}
                 {standing.tournamentSeed && (
@@ -102,7 +111,8 @@ export default function PoolTable({ tournamentId, poolId }) {
                 </span>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 

@@ -34,6 +34,18 @@ export default function MatchDetail({ match, tournament }) {
 
   const statusBadge = getStatusBadge(match.status);
 
+  // Check if this is a pool match
+  const isPoolMatch = match.matchType === 'pool' || match.poolId;
+
+  // Get pool name from poolId (e.g., "pool_A" -> "Pool A")
+  const getPoolName = () => {
+    if (match.poolId) {
+      const poolLetter = match.poolId.split('_')[1];
+      return `Pool ${poolLetter}`;
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Match Header */}
@@ -43,7 +55,9 @@ export default function MatchDetail({ match, tournament }) {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Match #{match.matchNumber}
             </h1>
-            <p className="text-gray-600">{getRoundName(match.round)}</p>
+            <p className="text-gray-600">
+              {isPoolMatch ? getPoolName() : getRoundName(match.round)}
+            </p>
             {tournament && (
               <p className="text-sm text-gray-500 mt-1">{tournament.name}</p>
             )}
@@ -162,13 +176,26 @@ export default function MatchDetail({ match, tournament }) {
                 <p className="text-lg font-bold text-gray-900">{match.rules.cap}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-600 mb-1">Best Of</p>
-                <p className="text-lg font-bold text-gray-900">{match.rules.bestOf}</p>
+                <p className="text-xs text-gray-600 mb-1">
+                  {isPoolMatch ? 'Sets' : 'Best Of'}
+                </p>
+                <p className="text-lg font-bold text-gray-900">
+                  {isPoolMatch ? (match.rules.numSets || match.rules.bestOf) : match.rules.bestOf}
+                </p>
               </div>
             </div>
             <p className="text-xs text-gray-600 mt-3">
-              Best of {match.rules.bestOf} sets. First to {match.rules.firstTo} points,
-              must win by {match.rules.winBy}, capped at {match.rules.cap}.
+              {isPoolMatch ? (
+                <>
+                  {match.rules.numSets || match.rules.bestOf} sets per match. First to {match.rules.firstTo} points,
+                  must win by {match.rules.winBy}, capped at {match.rules.cap}.
+                </>
+              ) : (
+                <>
+                  Best of {match.rules.bestOf} sets. First to {match.rules.firstTo} points,
+                  must win by {match.rules.winBy}, capped at {match.rules.cap}.
+                </>
+              )}
             </p>
           </div>
         )}

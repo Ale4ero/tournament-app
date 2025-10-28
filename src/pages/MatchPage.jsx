@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { getMatchById } from '../services/match.service';
 import { getTournamentById } from '../services/tournament.service';
@@ -8,6 +8,7 @@ import MatchDetail from '../components/match/MatchDetail';
 
 export default function MatchPage() {
   const { matchId } = useParams();
+  const [searchParams] = useSearchParams();
   const [match, setMatch] = useState(null);
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,13 @@ export default function MatchPage() {
 
     // If it's a pool match, go to pools tab; otherwise go to playoffs tab
     const tab = match?.matchType === 'pool' ? 'pools' : 'playoffs';
+    const poolView = searchParams.get('poolView');
+
+    // Include poolView parameter if it exists (to remember Standings vs Matches tab)
+    if (poolView) {
+      return `/tournament/${tournament.id}?tab=${tab}&poolView=${poolView}`;
+    }
+
     return `/tournament/${tournament.id}?tab=${tab}`;
   };
 

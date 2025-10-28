@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { updateMatchRules } from '../../services/match.service';
 
 export default function EditMatchRulesForm({ match, onCancel, onSuccess }) {
+  // Check if this is a pool match
+  const isPoolMatch = match.matchType === 'pool' || match.poolId;
+
   const [rules, setRules] = useState({
     firstTo: match.rules?.firstTo || 21,
     winBy: match.rules?.winBy || 2,
     cap: match.rules?.cap || 30,
     bestOf: match.rules?.bestOf || 3,
+    numSets: match.rules?.numSets || match.rules?.bestOf || 2,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,8 +46,18 @@ export default function EditMatchRulesForm({ match, onCancel, onSuccess }) {
       return;
     }
 
-    if (rules.bestOf <= 0 || rules.bestOf % 2 === 0) {
-      setError('Best Of must be a positive odd number (e.g., 1, 3, 5)');
+    // Validate bestOf only for non-pool matches
+    if (!isPoolMatch) {
+      if (rules.bestOf <= 0 || rules.bestOf % 2 === 0) {
+        setError('Best Of must be a positive odd number (e.g., 1, 3, 5)');
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Validate numSets for pool matches
+    if (isPoolMatch && rules.numSets <= 0) {
+      setError('Number of Sets must be greater than 0');
       setLoading(false);
       return;
     }
@@ -126,19 +140,19 @@ export default function EditMatchRulesForm({ match, onCancel, onSuccess }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Best Of
+              {isPoolMatch ? 'Sets' : 'Best Of'}
             </label>
             <input
               type="number"
               min="1"
-              step="2"
-              value={rules.bestOf}
-              onChange={(e) => handleChange('bestOf', e.target.value)}
+              step={isPoolMatch ? "1" : "2"}
+              value={isPoolMatch ? rules.numSets : rules.bestOf}
+              onChange={(e) => handleChange(isPoolMatch ? 'numSets' : 'bestOf', e.target.value)}
               required
               className="input-field"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Number of sets (must be odd)
+              {isPoolMatch ? 'Number of sets per match' : 'Number of sets (must be odd)'}
             </p>
           </div>
         </div>
@@ -146,8 +160,17 @@ export default function EditMatchRulesForm({ match, onCancel, onSuccess }) {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
           <p className="font-semibold mb-1">Preview:</p>
           <p>
-            Best of {rules.bestOf} sets. First to {rules.firstTo} points, must
-            win by {rules.winBy}, capped at {rules.cap}.
+            {isPoolMatch ? (
+              <>
+                {rules.numSets} sets per match. First to {rules.firstTo} points, must
+                win by {rules.winBy}, capped at {rules.cap}.
+              </>
+            ) : (
+              <>
+                Best of {rules.bestOf} sets. First to {rules.firstTo} points, must
+                win by {rules.winBy}, capped at {rules.cap}.
+              </>
+            )}
           </p>
         </div>
 

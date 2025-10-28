@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PoolTable from './PoolTable';
 import PoolMatchList from './PoolMatchList';
 import { POOL_STATUS } from '../../utils/constants';
@@ -9,7 +10,16 @@ import { POOL_STATUS } from '../../utils/constants';
  * @param {string} tournamentId - Tournament ID
  */
 export default function PoolCard({ pool, tournamentId }) {
-  const [activeView, setActiveView] = useState('standings'); // 'standings' | 'matches'
+  const [searchParams] = useSearchParams();
+  const poolViewParam = searchParams.get('poolView');
+  const [activeView, setActiveView] = useState(poolViewParam || 'standings'); // 'standings' | 'matches'
+
+  // Update active view when URL parameter changes
+  useEffect(() => {
+    if (poolViewParam) {
+      setActiveView(poolViewParam);
+    }
+  }, [poolViewParam]);
 
   const getStatusBadge = (status) => {
     const badges = {
