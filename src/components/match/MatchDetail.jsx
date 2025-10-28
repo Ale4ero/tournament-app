@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime } from '../../utils/tournamentStatus';
 import { MATCH_STATUS } from '../../utils/constants';
 import { getRoundName } from '../../utils/bracketGenerator';
-import ScoreSubmissionForm from './ScoreSubmissionForm';
 import ScoreApprovalPanel from './ScoreApprovalPanel';
 import AdminScoreSubmissionForm from './AdminScoreSubmissionForm';
 import EditScoreForm from './EditScoreForm';
@@ -85,26 +84,28 @@ export default function MatchDetail({ match, tournament }) {
           </div>
         </div>
 
-        {/* Set Breakdown (if available from scoreboard) */}
+        {/* Set Breakdown (if available) */}
         {match.setScores && match.setScores.length > 0 && (
           <div className="mt-6 bg-gray-50 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Set-by-Set Results</h3>
             <div className="space-y-2">
-              {match.setScores.map((set, index) => {
-                if (!set.winner) return null;
-                const setWinnerName = set.winner === 'team1' ? match.team1 : match.team2;
-                return (
-                  <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3">
-                    <div>
-                      <span className="font-semibold text-gray-900">Set {set.setNumber}</span>
-                      <span className="text-sm text-gray-600 ml-2">({setWinnerName} wins)</span>
-                    </div>
-                    <div className="text-lg font-bold text-gray-900">
-                      {match.team1}: {set.team1Score} - {match.team2}: {set.team2Score}
-                    </div>
+              {match.setScores.map((set, index) => (
+                <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3">
+                  <div>
+                    <span className="font-semibold text-gray-900">Set {set.set}</span>
+                    <span className="text-sm text-gray-600 ml-2">({set.winner} wins)</span>
                   </div>
-                );
-              })}
+                  <div className="text-lg font-bold space-x-2">
+                    <span className={set.winner === match.team1 ? 'text-green-600' : 'text-gray-600'}>
+                      {set.score1}
+                    </span>
+                    <span className="text-gray-400">-</span>
+                    <span className={set.winner === match.team2 ? 'text-green-600' : 'text-gray-600'}>
+                      {set.score2}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -209,11 +210,6 @@ export default function MatchDetail({ match, tournament }) {
             <ScoreApprovalPanel match={match} />
           </div>
         </>
-      )}
-
-      {/* Public Score Submission */}
-      {!isAdmin && (
-        <ScoreSubmissionForm match={match} />
       )}
 
       {/* Next Match Info */}

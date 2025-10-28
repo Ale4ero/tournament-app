@@ -398,9 +398,10 @@ export async function rejectScore(matchId, submissionId) {
  * @param {number} score1 - Team 1 score
  * @param {number} score2 - Team 2 score
  * @param {string} adminUid - Admin user ID
+ * @param {Array} setScores - Optional array of set scores
  * @returns {Promise<void>}
  */
-export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, adminUid) {
+export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, adminUid, setScores = null) {
   try {
     const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${matchId}`);
     const matchSnapshot = await get(matchRef);
@@ -413,14 +414,21 @@ export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, 
     const winner = determineWinner(score1, score2, match.team1, match.team2);
 
     // Update match with scores
-    await update(matchRef, {
+    const matchUpdates = {
       score1,
       score2,
       winner,
       status: MATCH_STATUS.COMPLETED,
       approvedAt: Date.now(),
       approvedBy: adminUid,
-    });
+    };
+
+    // Include setScores if provided
+    if (setScores && Array.isArray(setScores)) {
+      matchUpdates.setScores = setScores;
+    }
+
+    await update(matchRef, matchUpdates);
 
     // Reject all pending submissions for this match (since admin submitted directly)
     const allSubmissionsRef = ref(database, `${DB_PATHS.SUBMISSIONS}/${matchId}`);
