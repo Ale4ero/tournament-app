@@ -42,7 +42,7 @@ function applySnakeSeeding(teams, numPools) {
  * @param {Array<string>} teams - Array of team names
  * @param {number} numPools - Number of pools to create
  * @param {Array<string>} seedOrder - Optional seed order for snake seeding
- * @returns {Promise<Object>} Pool assignments { poolId: [teams] }
+ * @returns {Promise<Object>} Pool assignments { poolId: { teams: [teams], teamSeeds: {teamName: seed} } }
  */
 export async function createPools(tournamentId, teams, numPools, seedOrder = null) {
   try {
@@ -51,15 +51,16 @@ export async function createPools(tournamentId, teams, numPools, seedOrder = nul
     }
 
     let poolTeamsArray;
+    const usedSeedOrder = seedOrder && seedOrder.length === teams.length ? seedOrder : [...teams].sort(() => Math.random() - 0.5);
 
-    // Use snake seeding if seed order is provided
-    if (seedOrder && seedOrder.length === teams.length) {
-      poolTeamsArray = applySnakeSeeding(seedOrder, numPools);
-    } else {
-      // Fallback to random distribution (legacy behavior)
-      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
-      poolTeamsArray = applySnakeSeeding(shuffledTeams, numPools);
-    }
+    // Create a map of team names to their seed numbers (1-indexed)
+    const teamSeedMap = {};
+    usedSeedOrder.forEach((team, index) => {
+      teamSeedMap[team] = index + 1;
+    });
+
+    // Use snake seeding
+    poolTeamsArray = applySnakeSeeding(usedSeedOrder, numPools);
 
     const poolAssignments = {};
 
@@ -85,7 +86,13 @@ export async function createPools(tournamentId, teams, numPools, seedOrder = nul
       const poolRef = ref(database, `pools/${tournamentId}/${poolId}`);
       await set(poolRef, poolData);
 
-      poolAssignments[poolId] = poolTeams;
+      // Create team seed map for this pool
+      const poolTeamSeeds = {};
+      poolTeams.forEach(team => {
+        poolTeamSeeds[team] = teamSeedMap[team];
+      });
+
+      poolAssignments[poolId] = { teams: poolTeams, teamSeeds: poolTeamSeeds };
     }
 
     return poolAssignments;
@@ -155,15 +162,17 @@ export async function generatePoolMatches(tournamentId, poolId, teams, matchRule
  * @param {string} tournamentId - Tournament ID
  * @param {string} poolId - Pool ID
  * @param {Array<string>} teams - Teams in the pool
+ * @param {Object} teamSeeds - Map of team names to their tournament seeds
  * @returns {Promise<void>}
  */
-export async function initializePoolStandings(tournamentId, poolId, teams) {
+export async function initializePoolStandings(tournamentId, poolId, teams, teamSeeds = {}) {
   try {
     for (const team of teams) {
       const standingData = {
         team,
         poolId,
         tournamentId,
+        tournamentSeed: teamSeeds[team] || null,
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
@@ -293,7 +302,7 @@ export async function updatePoolStandings(tournamentId, poolId, match, poolConfi
  * @param {string} poolId - Pool ID
  * @returns {Promise<void>}
  */
-async function recalculatePoolRanks(tournamentId, poolId) {
+export async function recalculatePoolRanks(tournamentId, poolId) {
   try {
     const standingsRef = ref(database, `pools/${tournamentId}/${poolId}/standings`);
     const standingsSnapshot = await get(standingsRef);

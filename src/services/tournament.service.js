@@ -3,7 +3,7 @@ import { database } from './firebase';
 import { DB_PATHS, TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../utils/constants';
 import { generateSingleEliminationBracket, generateDefaultMatchRules } from '../utils/bracketGenerator';
 import { getTournamentStatus } from '../utils/tournamentStatus';
-import { createPools, generatePoolMatches, initializePoolStandings } from './pool.service';
+import { createPools, generatePoolMatches, initializePoolStandings, recalculatePoolRanks } from './pool.service';
 
 /**
  * Create a tournament draft (basic info without bracket)
@@ -198,9 +198,11 @@ export async function createPoolPlayTournamentFromDraft(draftId, poolConfig, pla
     const poolAssignments = await createPools(tournamentId, draft.teams, poolConfig.numPools, seedOrder);
 
     // Generate matches for each pool
-    for (const [poolId, poolTeams] of Object.entries(poolAssignments)) {
-      await generatePoolMatches(tournamentId, poolId, poolTeams, poolConfig.poolMatchRules);
-      await initializePoolStandings(tournamentId, poolId, poolTeams);
+    for (const [poolId, poolData] of Object.entries(poolAssignments)) {
+      await generatePoolMatches(tournamentId, poolId, poolData.teams, poolConfig.poolMatchRules);
+      await initializePoolStandings(tournamentId, poolId, poolData.teams, poolData.teamSeeds);
+      // Recalculate ranks to set initial rankings (1, 2, 3, etc.)
+      await recalculatePoolRanks(tournamentId, poolId);
     }
 
     // Delete draft
@@ -348,6 +350,10 @@ export async function deleteTournament(tournamentId) {
     // Delete associated matches
     const matchesRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}`);
     await remove(matchesRef);
+
+    // Delete associated pools (for pool play tournaments)
+    const poolsRef = ref(database, `pools/${tournamentId}`);
+    await remove(poolsRef);
 
     // Delete associated submissions
     const submissionsRef = ref(database, `${DB_PATHS.SUBMISSIONS}`);

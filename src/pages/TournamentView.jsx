@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
@@ -8,6 +8,7 @@ import PoolList from '../components/pools/PoolList';
 import AdvanceToPlayoffsButton from '../components/pools/AdvanceToPlayoffsButton';
 import { formatDate } from '../utils/tournamentStatus';
 import { TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../utils/constants';
+import { deleteTournament } from '../services/tournament.service';
 
 // Helper function to format tournament type display names
 const formatTournamentType = (type) => {
@@ -23,6 +24,9 @@ export default function TournamentView() {
   const { tournament, loading } = useTournament(id);
   const { isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Get tab from URL or default to 'pools'
   const tabFromUrl = searchParams.get('tab') || 'pools';
@@ -34,6 +38,19 @@ export default function TournamentView() {
       setSearchParams({ tab: activeTab });
     }
   }, [activeTab, tabFromUrl, setSearchParams]);
+
+  const handleDeleteTournament = async () => {
+    try {
+      setDeleting(true);
+      await deleteTournament(id);
+      navigate('/admin', { state: { message: 'Tournament deleted successfully' } });
+    } catch (error) {
+      console.error('Error deleting tournament:', error);
+      alert('Failed to delete tournament: ' + error.message);
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -98,9 +115,19 @@ export default function TournamentView() {
                 <p className="text-gray-600 mb-4">{tournament.description}</p>
               )}
             </div>
-            <span className={getStatusBadge(tournament.status)}>
-              {getStatusText(tournament.status)}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={getStatusBadge(tournament.status)}>
+                {getStatusText(tournament.status)}
+              </span>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                >
+                  Delete Tournament
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
@@ -215,6 +242,34 @@ export default function TournamentView() {
                   <span className="text-gray-700 font-medium">{team}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Delete Tournament?</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete <strong>{tournament.name}</strong>? This will permanently delete the tournament and all associated data including matches, pools, and submissions. This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteTournament}
+                  disabled={deleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Tournament'}
+                </button>
+              </div>
             </div>
           </div>
         )}
