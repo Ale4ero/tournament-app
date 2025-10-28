@@ -69,14 +69,9 @@ export default function TournamentForm({ onSuccess }) {
         draftData.endDate = new Date(formData.endDate).getTime();
       }
 
-      // Create draft and redirect to appropriate page
+      // Create draft and redirect to setup page
       const draftId = await createTournamentDraft(draftData, user.uid, organizationId);
-
-      if (formData.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET) {
-        navigate(`/tournaments/pool-setup/${draftId}`);
-      } else {
-        navigate(`/tournaments/manage-bracket/${draftId}`);
-      }
+      navigate(`/tournaments/setup/${draftId}`);
     } catch (err) {
       setError(err.message || 'Failed to create tournament draft');
       console.error('Create tournament draft error:', err);

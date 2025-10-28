@@ -6,8 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import CreateTournamentPage from './pages/CreateTournamentPage';
-import ManageBracketPage from './pages/ManageBracketPage';
-import PoolSetupPage from './pages/PoolSetupPage';
+import TournamentSetupPage from './pages/TournamentSetupPage';
 import TournamentView from './pages/TournamentView';
 import MatchPage from './pages/MatchPage';
 import ScoreboardPage from './pages/ScoreboardPage';
@@ -29,8 +28,7 @@ function App() {
           <Route path="/organization/setup" element={<OrganizationSetupPage />} />
           <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="/admin/tournament/create" element={<CreateTournamentPage />} />
-          <Route path="/tournaments/manage-bracket/:draftId" element={<ManageBracketPage />} />
-          <Route path="/tournaments/pool-setup/:draftId" element={<PoolSetupPage />} />
+          <Route path="/tournaments/setup/:draftId" element={<TournamentSetupPage />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -1,117 +1,83 @@
 import { useState } from 'react';
 import RoundRuleCard from './RoundRuleCard';
-import useBracketRules from './useBracketRules';
 import { DEFAULT_MATCH_RULES } from '../../utils/constants';
 
 /**
- * BracketRulesForm - Main form for configuring match rules for all rounds
- * @param {number} numTeams - Number of teams in the tournament
- * @param {Object} initialRules - Optional initial rules
- * @param {Function} onSubmit - Callback when form is submitted with rules
- * @param {Function} onCancel - Callback when form is cancelled
- * @param {boolean} loading - Whether the form is in a loading state
+ * BracketRulesSection - Renders bracket rules fields without form wrapper or submit buttons
+ * Used for embedding in larger forms
+ * @param {Array} rounds - Array of round objects
+ * @param {Object} rules - Current rules for all rounds
+ * @param {Object} errors - Validation errors
+ * @param {Function} onRulesChange - Callback when rules change
+ * @param {Function} onApplyTemplate - Callback to apply template
+ * @param {Function} onReset - Callback to reset rules
+ * @param {boolean} disabled - Whether inputs are disabled
  */
-export default function BracketRulesForm({ numTeams, initialRules, onSubmit, onCancel, loading = false }) {
-  const { rules, rounds, isValid, errors, updateRoundRules, validateRules, resetRules, applyTemplate } =
-    useBracketRules(numTeams, initialRules);
-
+export default function BracketRulesSection({
+  rounds,
+  rules,
+  errors,
+  onRulesChange,
+  onApplyTemplate,
+  onReset,
+  disabled = false,
+}) {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!validateRules()) {
-      return;
-    }
-
-    onSubmit(rules);
-  };
 
   const handleApplyTemplate = () => {
     setShowTemplateModal(true);
   };
 
   const applyTemplateAndClose = (templateRules) => {
-    applyTemplate(templateRules);
+    onApplyTemplate(templateRules);
     setShowTemplateModal(false);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      {/* <div className="bg-primary-50 border border-primary-200 rounded-lg p-4"> */}
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Configure Playoff Match Rules</h2>
-        {/* <p className="text-gray-700">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Configure Match Rules</h2>
+        <p className="text-gray-700">
           Define the scoring rules for each round of your tournament. You can customize rules per round or apply
           a template to all rounds.
-        </p> */}
-      {/* </div> */}
+        </p>
+      </div>
 
       {/* Quick Actions */}
       <div className="flex gap-3">
         <button
           type="button"
           onClick={handleApplyTemplate}
-          disabled={loading}
+          disabled={disabled}
           className="btn-secondary text-sm"
         >
           Apply Template to All
         </button>
-        <button
-          type="button"
-          onClick={resetRules}
-          disabled={loading}
-          className="btn-secondary text-sm"
-        >
+        <button type="button" onClick={onReset} disabled={disabled} className="btn-secondary text-sm">
           Reset to Defaults
         </button>
       </div>
 
       {/* Round Rules */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {rounds.map(({ roundKey, roundName }) => (
-            <div key={roundKey}>
-              <RoundRuleCard
-                roundName={roundName}
-                roundKey={roundKey}
-                rules={rules[roundKey] || DEFAULT_MATCH_RULES}
-                onRulesChange={updateRoundRules}
-                disabled={loading}
-              />
-              {errors[roundKey] && (
-                <div className="mt-2 text-sm text-red-600">{errors[roundKey]}</div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Form Actions */}
-        <div className="flex gap-4 pt-4 border-t border-gray-200">
-          <button
-            type="submit"
-            disabled={loading || !isValid}
-            className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Creating Tournament...' : 'Create Tournament'}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {rounds.map(({ roundKey, roundName }) => (
+          <div key={roundKey}>
+            <RoundRuleCard
+              roundName={roundName}
+              roundKey={roundKey}
+              rules={rules[roundKey] || DEFAULT_MATCH_RULES}
+              onRulesChange={onRulesChange}
+              disabled={disabled}
+            />
+            {errors[roundKey] && <div className="mt-2 text-sm text-red-600">{errors[roundKey]}</div>}
+          </div>
+        ))}
+      </div>
 
       {/* Template Modal */}
       {showTemplateModal && (
-        <TemplateModal
-          onApply={applyTemplateAndClose}
-          onClose={() => setShowTemplateModal(false)}
-        />
+        <TemplateModal onApply={applyTemplateAndClose} onClose={() => setShowTemplateModal(false)} />
       )}
     </div>
   );
@@ -161,8 +127,8 @@ function TemplateModal({ onApply, onClose }) {
             >
               <div className="font-semibold text-gray-900">{template.name}</div>
               <div className="text-sm text-gray-600 mt-1">
-                First to {template.rules.firstTo}, win by {template.rules.winBy}, cap at{' '}
-                {template.rules.cap}, best of {template.rules.bestOf}
+                First to {template.rules.firstTo}, win by {template.rules.winBy}, cap at {template.rules.cap},
+                best of {template.rules.bestOf}
               </div>
             </button>
           ))}
