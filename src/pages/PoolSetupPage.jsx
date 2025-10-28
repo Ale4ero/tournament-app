@@ -30,9 +30,9 @@ export default function PoolSetupPage() {
 
   const [playoffConfig, setPlayoffConfig] = useState({
     matchRules: {
-      finals: { firstTo: 25, winBy: 2, cap: 30, bestOf: 5 },
-      semifinals: { firstTo: 25, winBy: 2, cap: 30, bestOf: 3 },
-      quarterfinals: { firstTo: 25, winBy: 2, cap: 30, bestOf: 3 },
+      finals: { firstTo: 21, winBy: 2, cap: 30, bestOf: 3 },
+      semifinals: { firstTo: 21, winBy: 2, cap: 25, bestOf: 3 },
+      quarterfinals: { firstTo: 21, winBy: 2, cap: 25, bestOf: 3 },
     },
   });
 

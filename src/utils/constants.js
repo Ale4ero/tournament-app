@@ -70,9 +70,9 @@ export const DEFAULT_POOL_CONFIG = {
   pointsPerLoss: 0,
   advancePerPool: 2,
   poolMatchRules: {
-    firstTo: 25,
+    firstTo: 21,
     winBy: 2,
-    cap: 30,
+    cap: 25,
     numSets: 2, // Number of sets per match (records based on sets won/lost, not matches)
   },
 };
@@ -81,7 +81,7 @@ export const DEFAULT_POOL_CONFIG = {
 export const DEFAULT_MATCH_RULES = {
   firstTo: 21,
   winBy: 2,
-  cap: 30,
+  cap: 25,
   bestOf: 3,
 };
 
