@@ -7,11 +7,13 @@ import { getRoundName } from '../../utils/bracketGenerator';
 import ScoreApprovalPanel from './ScoreApprovalPanel';
 import AdminScoreSubmissionForm from './AdminScoreSubmissionForm';
 import EditScoreForm from './EditScoreForm';
+import EditMatchRulesForm from './EditMatchRulesForm';
 
 export default function MatchDetail({ match, tournament }) {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingRules, setIsEditingRules] = useState(false);
 
   if (!match) {
     return (
@@ -125,7 +127,27 @@ export default function MatchDetail({ match, tournament }) {
         {/* Match Rules */}
         {match.rules && (
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Match Rules</h3>
+            <div className="flex justify-between items-start mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Match Rules</h3>
+              {isAdmin && !isEditingRules && (
+                <button
+                  onClick={() => setIsEditingRules(true)}
+                  disabled={match.status === MATCH_STATUS.COMPLETED}
+                  className={`text-sm font-medium ${
+                    match.status === MATCH_STATUS.COMPLETED
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-blue-600 hover:text-blue-700'
+                  }`}
+                  title={
+                    match.status === MATCH_STATUS.COMPLETED
+                      ? 'Cannot edit rules for completed matches'
+                      : 'Edit match rules'
+                  }
+                >
+                  Edit Rules
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-xs text-gray-600 mb-1">First To</p>
@@ -168,6 +190,17 @@ export default function MatchDetail({ match, tournament }) {
       {isAdmin && isEditing && match.status === MATCH_STATUS.COMPLETED && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <EditScoreForm match={match} onCancel={() => setIsEditing(false)} />
+        </div>
+      )}
+
+      {/* Edit Match Rules Form */}
+      {isAdmin && isEditingRules && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <EditMatchRulesForm
+            match={match}
+            onCancel={() => setIsEditingRules(false)}
+            onSuccess={() => setIsEditingRules(false)}
+          />
         </div>
       )}
 

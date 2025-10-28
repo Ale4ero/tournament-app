@@ -642,6 +642,30 @@ export function subscribeAllSubmissions(matchId, callback) {
 }
 
 /**
+ * Update match rules (admin only)
+ * @param {string} tournamentId - Tournament ID
+ * @param {string} matchId - Match ID
+ * @param {Object} rules - New match rules
+ * @returns {Promise<void>}
+ */
+export async function updateMatchRules(tournamentId, matchId, rules) {
+  try {
+    const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${matchId}`);
+    await update(matchRef, {
+      rules: {
+        firstTo: rules.firstTo,
+        winBy: rules.winBy,
+        cap: rules.cap,
+        bestOf: rules.bestOf,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating match rules:', error);
+    throw error;
+  }
+}
+
+/**
  * Edit the final score of a completed match (admin only)
  * This function handles re-calculating winners and updating subsequent matches
  * @param {string} tournamentId - Tournament ID
