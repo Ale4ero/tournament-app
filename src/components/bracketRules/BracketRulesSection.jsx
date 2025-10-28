@@ -36,13 +36,8 @@ export default function BracketRulesSection({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Configure Match Rules</h2>
-        <p className="text-gray-700">
-          Define the scoring rules for each round of your tournament. You can customize rules per round or apply
-          a template to all rounds.
-        </p>
-      </div>
+
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Configure Playoff Match Rules</h2>
 
       {/* Quick Actions */}
       <div className="flex gap-3">
