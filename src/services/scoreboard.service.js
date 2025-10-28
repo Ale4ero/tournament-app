@@ -201,21 +201,39 @@ async function checkAndAdvanceSet(scoreboardId, userId) {
       if (set.winner === 'team2') team2SetsWon++;
     });
 
-    const setsToWin = Math.ceil(scoreboard.rules.bestOf / 2);
+    // Determine match completion based on format
+    const totalSets = scoreboard.rules.numSets || scoreboard.rules.bestOf;
+    const usesBestOf = scoreboard.rules.bestOf !== undefined && scoreboard.rules.numSets === undefined;
 
-    // Check if match is won
-    if (team1SetsWon >= setsToWin) {
-      await completeScoreboard(scoreboardId, 'team1', userId, team1SetsWon, team2SetsWon);
-      return;
-    }
-    if (team2SetsWon >= setsToWin) {
-      await completeScoreboard(scoreboardId, 'team2', userId, team1SetsWon, team2SetsWon);
-      return;
+    if (usesBestOf) {
+      // Best-of format: match ends when one team wins majority
+      const setsToWin = Math.ceil(scoreboard.rules.bestOf / 2);
+
+      if (team1SetsWon >= setsToWin) {
+        await completeScoreboard(scoreboardId, 'team1', userId, team1SetsWon, team2SetsWon);
+        return;
+      }
+      if (team2SetsWon >= setsToWin) {
+        await completeScoreboard(scoreboardId, 'team2', userId, team1SetsWon, team2SetsWon);
+        return;
+      }
+    } else {
+      // Fixed number of sets: match ends after all sets played (ties allowed)
+      if (scoreboard.currentSet >= totalSets) {
+        const currentSet = scoreboard.sets[scoreboard.currentSet - 1];
+        if (currentSet.winner) {
+          // All sets complete - determine winner or tie
+          const winner = team1SetsWon > team2SetsWon ? 'team1' :
+                        team2SetsWon > team1SetsWon ? 'team2' : null; // null = tie
+          await completeScoreboard(scoreboardId, winner, userId, team1SetsWon, team2SetsWon);
+          return;
+        }
+      }
     }
 
     // Advance to next set if current set is complete
     const currentSet = scoreboard.sets[scoreboard.currentSet - 1];
-    if (currentSet.winner && scoreboard.currentSet < scoreboard.rules.bestOf) {
+    if (currentSet.winner && scoreboard.currentSet < totalSets) {
       const nextSetNumber = scoreboard.currentSet + 1;
       const newSet = {
         setNumber: nextSetNumber,
@@ -286,8 +304,9 @@ export async function submitScoreboardResults(scoreboardId, userId) {
 
     // Determine final scores based on match format
     let score1, score2;
+    const totalSets = scoreboard.rules.numSets || scoreboard.rules.bestOf || 1;
 
-    if (scoreboard.rules.bestOf > 1) {
+    if (totalSets > 1) {
       // For multi-set matches, use sets won as the final score
       score1 = scoreboard.team1SetsWon;
       score2 = scoreboard.team2SetsWon;

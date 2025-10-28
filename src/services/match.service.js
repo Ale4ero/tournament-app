@@ -1,8 +1,56 @@
 import { ref, push, set, get, update, onValue } from 'firebase/database';
 import { database } from './firebase';
-import { DB_PATHS, MATCH_STATUS, SUBMISSION_STATUS } from '../utils/constants';
+import { DB_PATHS, MATCH_STATUS, SUBMISSION_STATUS, MATCH_TYPE } from '../utils/constants';
 import { determineWinner, advanceWinner } from '../utils/bracketGenerator';
-import { updateTournament } from './tournament.service';
+import { updateTournament, getTournamentById } from './tournament.service';
+import { updatePoolStandings } from './pool.service';
+
+/**
+ * Update tournament status based on match completion
+ * @param {string} tournamentId - Tournament ID
+ */
+async function updateTournamentStatus(tournamentId) {
+  try {
+    const tournament = await getTournamentById(tournamentId);
+    const allMatches = await getMatchesByTournament(tournamentId);
+    const isPoolPlayTournament = tournament.type === 'pool_play_bracket';
+
+    if (isPoolPlayTournament) {
+      // For pool play tournaments, check pool vs playoff matches separately
+      const poolMatches = allMatches.filter(m => m.matchType === 'pool');
+      const playoffMatches = allMatches.filter(m => m.matchType === 'playoff');
+
+      const allPoolMatchesComplete = poolMatches.length > 0 && poolMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
+      const anyPoolMatchesComplete = poolMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
+      const allPlayoffMatchesComplete = playoffMatches.length > 0 && playoffMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
+
+      if (allPlayoffMatchesComplete) {
+        console.log('All playoff matches completed - updating tournament to completed');
+        await updateTournament(tournamentId, { status: 'completed' });
+      } else if (allPoolMatchesComplete && tournament.status !== 'playoffs') {
+        console.log('All pool matches completed - updating tournament to pool_play');
+        await updateTournament(tournamentId, { status: 'pool_play' });
+      } else if (anyPoolMatchesComplete && tournament.status === 'upcoming') {
+        console.log('Pool matches started - updating to pool_play');
+        await updateTournament(tournamentId, { status: 'pool_play' });
+      }
+    } else {
+      // Single elimination: use original logic
+      const allCompleted = allMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
+      const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
+
+      if (allCompleted) {
+        console.log('All matches completed - updating tournament to completed');
+        await updateTournament(tournamentId, { status: 'completed' });
+      } else if (anyCompleted) {
+        console.log('Tournament has active matches - updating to live');
+        await updateTournament(tournamentId, { status: 'live' });
+      }
+    }
+  } catch (error) {
+    console.error('Error updating tournament status:', error);
+  }
+}
 
 /**
  * Get all matches for a tournament
@@ -55,10 +103,34 @@ export async function getMatchById(tournamentId, matchId) {
  */
 export async function getMatch(matchId) {
   try {
-    // matchId format: tournamentId_rX_mY
-    // Extract tournament ID (everything before _r)
-    const tournamentId = matchId.split('_r')[0];
-    return await getMatchById(tournamentId, matchId);
+    console.log('getMatch called with matchId:', matchId);
+
+    // matchId formats:
+    // - Playoff: tournamentId_rX_mY
+    // - Pool: tournamentId_poolId_mX (e.g., tournament123_pool_A_m1)
+    // Extract tournament ID (everything before the first underscore followed by 'r' or 'pool')
+    let tournamentId;
+
+    if (matchId.includes('_r')) {
+      // Playoff match: split on _r
+      tournamentId = matchId.split('_r')[0];
+      console.log('Detected playoff match, tournamentId:', tournamentId);
+    } else if (matchId.includes('_pool')) {
+      // Pool match: split on _pool
+      tournamentId = matchId.split('_pool')[0];
+      console.log('Detected pool match, tournamentId:', tournamentId);
+    } else {
+      // Fallback: try to extract from path parts
+      const parts = matchId.split('_');
+      tournamentId = parts[0]; // Assume first part is tournament ID
+      console.log('Fallback extraction, tournamentId:', tournamentId);
+    }
+
+    console.log('Calling getMatchById with:', tournamentId, matchId);
+    const match = await getMatchById(tournamentId, matchId);
+    console.log('Match retrieved:', match);
+
+    return match;
   } catch (error) {
     console.error('Error getting match:', error);
     throw error;
@@ -231,7 +303,34 @@ export async function approveScore(matchId, submissionId, adminUid) {
       }
     }
 
-    // Advance winner to next match if exists
+    // Check if this is a pool match - if so, update pool standings
+    if (match.matchType === MATCH_TYPE.POOL && match.poolId) {
+      console.log('Pool match detected - updating pool standings for pool:', match.poolId);
+      try {
+        // Get tournament to access pool configuration
+        const tournament = await getTournamentById(tournamentId);
+        if (tournament && tournament.poolConfig) {
+          await updatePoolStandings(
+            tournamentId,
+            match.poolId,
+            {
+              ...match,
+              score1,
+              score2,
+              winner,
+              setScores
+            },
+            tournament.poolConfig
+          );
+          console.log('Pool standings updated successfully');
+        }
+      } catch (poolError) {
+        console.error('Error updating pool standings:', poolError);
+        // Don't fail the entire approval if pool update fails
+      }
+    }
+
+    // Advance winner to next match if exists (playoff/single-elimination matches only)
     if (winner && match.nextMatchId) {
       console.log('Advancing winner:', winner, 'to match:', match.nextMatchId);
       const allMatches = await getMatchesByTournament(tournamentId);
@@ -267,17 +366,7 @@ export async function approveScore(matchId, submissionId, adminUid) {
     }
 
     // Update tournament status based on match completion
-    const allMatches = await getMatchesByTournament(tournamentId);
-    const allCompleted = allMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
-    const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
-
-    if (allCompleted) {
-      console.log('All matches completed - updating tournament to completed');
-      await updateTournament(tournamentId, { status: 'completed' });
-    } else if (anyCompleted) {
-      console.log('Tournament has active matches - updating to live');
-      await updateTournament(tournamentId, { status: 'live' });
-    }
+    await updateTournamentStatus(tournamentId);
   } catch (error) {
     console.error('Error approving score:', error);
     throw error;
@@ -395,17 +484,7 @@ export async function submitScoreAsAdmin(tournamentId, matchId, score1, score2, 
     }
 
     // Update tournament status based on match completion
-    const allMatches = await getMatchesByTournament(tournamentId);
-    const allCompleted = allMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
-    const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
-
-    if (allCompleted) {
-      console.log('All matches completed - updating tournament to completed');
-      await updateTournament(tournamentId, { status: 'completed' });
-    } else if (anyCompleted) {
-      console.log('Tournament has active matches - updating to live');
-      await updateTournament(tournamentId, { status: 'live' });
-    }
+    await updateTournamentStatus(tournamentId);
   } catch (error) {
     console.error('Error submitting score as admin:', error);
     throw error;
@@ -624,17 +703,7 @@ export async function editMatchScore(tournamentId, matchId, newScore1, newScore2
     }
 
     // Update tournament status based on match completion
-    const allMatches = await getMatchesByTournament(tournamentId);
-    const allCompleted = allMatches.every(m => m.status === MATCH_STATUS.COMPLETED);
-    const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
-
-    if (allCompleted) {
-      console.log('All matches completed - updating tournament to completed');
-      await updateTournament(tournamentId, { status: 'completed' });
-    } else if (anyCompleted) {
-      console.log('Tournament has active matches - updating to live');
-      await updateTournament(tournamentId, { status: 'live' });
-    }
+    await updateTournamentStatus(tournamentId);
   } catch (error) {
     console.error('Error editing match score:', error);
     throw error;

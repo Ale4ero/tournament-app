@@ -15,8 +15,20 @@ export default function MatchPage() {
   useEffect(() => {
     const loadMatch = async () => {
       try {
-        // Extract tournament ID from match ID (format: tournamentId_r1_m1)
-        const tournamentId = matchId.split('_r')[0];
+        // Extract tournament ID from match ID
+        // Formats: tournamentId_r1_m1 (playoff) or tournamentId_pool_A_m1 (pool)
+        let tournamentId;
+
+        if (matchId.includes('_r')) {
+          // Playoff match: split on _r
+          tournamentId = matchId.split('_r')[0];
+        } else if (matchId.includes('_pool')) {
+          // Pool match: split on _pool
+          tournamentId = matchId.split('_pool')[0];
+        } else {
+          // Fallback
+          tournamentId = matchId.split('_')[0];
+        }
 
         const matchData = await getMatchById(tournamentId, matchId);
         setMatch(matchData);

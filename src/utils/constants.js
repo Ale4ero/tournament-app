@@ -2,6 +2,8 @@
 export const TOURNAMENT_STATUS = {
   UPCOMING: 'upcoming',
   LIVE: 'live',
+  POOL_PLAY: 'pool_play',
+  PLAYOFFS: 'playoffs',
   COMPLETED: 'completed',
 };
 
@@ -21,8 +23,8 @@ export const SUBMISSION_STATUS = {
 
 // Tournament types
 export const TOURNAMENT_TYPE = {
-  SINGLE_ELIMINATION: 'single-elimination',
-  // Future: DOUBLE_ELIMINATION, ROUND_ROBIN, etc.
+  SINGLE_ELIMINATION: 'single_elimination',
+  POOL_PLAY_BRACKET: 'pool_play_bracket',
 };
 
 // Seeding types
@@ -45,6 +47,34 @@ export const DB_PATHS = {
   SUBMISSIONS: 'submissions',
   USERS: 'users',
   SCOREBOARDS: 'scoreboards',
+  POOLS: 'pools',
+};
+
+// Pool statuses
+export const POOL_STATUS = {
+  UPCOMING: 'upcoming',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+};
+
+// Match types
+export const MATCH_TYPE = {
+  POOL: 'pool',
+  PLAYOFF: 'playoff',
+};
+
+// Default pool configuration
+export const DEFAULT_POOL_CONFIG = {
+  numPools: 2,
+  pointsPerWin: 3,
+  pointsPerLoss: 0,
+  advancePerPool: 2,
+  poolMatchRules: {
+    firstTo: 25,
+    winBy: 2,
+    cap: 30,
+    numSets: 2, // Number of sets per match (records based on sets won/lost, not matches)
+  },
 };
 
 // Default match rules for volleyball

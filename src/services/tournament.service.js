@@ -1,8 +1,9 @@
 import { ref, push, set, get, update, remove, onValue, query, orderByChild, equalTo } from 'firebase/database';
 import { database } from './firebase';
-import { DB_PATHS, TOURNAMENT_STATUS } from '../utils/constants';
+import { DB_PATHS, TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../utils/constants';
 import { generateSingleEliminationBracket, generateDefaultMatchRules } from '../utils/bracketGenerator';
 import { getTournamentStatus } from '../utils/tournamentStatus';
+import { createPools, generatePoolMatches, initializePoolStandings } from './pool.service';
 
 /**
  * Create a tournament draft (basic info without bracket)
@@ -144,6 +145,69 @@ export async function createTournamentFromDraft(draftId, matchRules) {
     return tournamentId;
   } catch (error) {
     console.error('Error creating tournament from draft:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a Pool Play + Bracket tournament from draft
+ * @param {string} draftId - Draft ID
+ * @param {Object} poolConfig - Pool configuration (numPools, advancePerPool, etc.)
+ * @param {Object} playoffConfig - Playoff bracket configuration (matchRules per round)
+ * @returns {Promise<string>} Tournament ID
+ */
+export async function createPoolPlayTournamentFromDraft(draftId, poolConfig, playoffConfig) {
+  try {
+    // Get draft data
+    const draft = await getTournamentDraft(draftId);
+    if (!draft) {
+      throw new Error('Draft not found');
+    }
+
+    // Create tournament
+    const tournamentRef = push(ref(database, DB_PATHS.TOURNAMENTS));
+    const tournamentId = tournamentRef.key;
+
+    const tournament = {
+      id: tournamentId,
+      name: draft.name,
+      description: draft.description,
+      type: TOURNAMENT_TYPE.POOL_PLAY_BRACKET,
+      seedingType: draft.seedingType,
+      startDate: draft.startDate,
+      teams: draft.teams,
+      poolConfig,
+      playoffConfig,
+      organizationId: draft.organizationId,
+      status: TOURNAMENT_STATUS.UPCOMING,
+      createdAt: Date.now(),
+      createdBy: draft.createdBy,
+      poolPlayCompletedAt: null,
+      playoffsStartedAt: null,
+    };
+
+    // Only include endDate if it exists in the draft
+    if (draft.endDate) {
+      tournament.endDate = draft.endDate;
+    }
+
+    await set(tournamentRef, tournament);
+
+    // Create pools and distribute teams
+    const poolAssignments = await createPools(tournamentId, draft.teams, poolConfig.numPools);
+
+    // Generate matches for each pool
+    for (const [poolId, poolTeams] of Object.entries(poolAssignments)) {
+      await generatePoolMatches(tournamentId, poolId, poolTeams, poolConfig.poolMatchRules);
+      await initializePoolStandings(tournamentId, poolId, poolTeams);
+    }
+
+    // Delete draft
+    await deleteTournamentDraft(draftId);
+
+    return tournamentId;
+  } catch (error) {
+    console.error('Error creating pool play tournament from draft:', error);
     throw error;
   }
 }

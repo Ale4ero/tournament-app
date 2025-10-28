@@ -43,14 +43,16 @@ export default function TournamentForm({ onSuccess }) {
         return;
       }
 
-      // Check if teams is a power of 2 for single elimination
-      const isPowerOfTwo = (n) => n > 0 && (n & (n - 1)) === 0;
-      if (!isPowerOfTwo(teams.length)) {
-        setError(
-          `Single elimination requires a power of 2 teams (2, 4, 8, 16, etc.). You have ${teams.length} teams.`
-        );
-        setLoading(false);
-        return;
+      // Check if teams is a power of 2 for single elimination only
+      if (formData.type === TOURNAMENT_TYPE.SINGLE_ELIMINATION) {
+        const isPowerOfTwo = (n) => n > 0 && (n & (n - 1)) === 0;
+        if (!isPowerOfTwo(teams.length)) {
+          setError(
+            `Single elimination requires a power of 2 teams (2, 4, 8, 16, etc.). You have ${teams.length} teams.`
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       const draftData = {
@@ -67,9 +69,14 @@ export default function TournamentForm({ onSuccess }) {
         draftData.endDate = new Date(formData.endDate).getTime();
       }
 
-      // Create draft and redirect to Manage Bracket page
+      // Create draft and redirect to appropriate page
       const draftId = await createTournamentDraft(draftData, user.uid, organizationId);
-      navigate(`/tournaments/manage-bracket/${draftId}`);
+
+      if (formData.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET) {
+        navigate(`/tournaments/pool-setup/${draftId}`);
+      } else {
+        navigate(`/tournaments/manage-bracket/${draftId}`);
+      }
     } catch (err) {
       setError(err.message || 'Failed to create tournament draft');
       console.error('Create tournament draft error:', err);
@@ -130,6 +137,7 @@ export default function TournamentForm({ onSuccess }) {
             className="input-field"
           >
             <option value={TOURNAMENT_TYPE.SINGLE_ELIMINATION}>Single Elimination</option>
+            <option value={TOURNAMENT_TYPE.POOL_PLAY_BRACKET}>Pool Play + Bracket</option>
           </select>
         </div>
 
@@ -195,7 +203,9 @@ export default function TournamentForm({ onSuccess }) {
           placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;Team Delta&#10;..."
         />
         <p className="text-xs text-gray-500 mt-1">
-          Must be a power of 2 (2, 4, 8, 16, etc.) for single elimination
+          {formData.type === TOURNAMENT_TYPE.SINGLE_ELIMINATION
+            ? 'Must be a power of 2 (2, 4, 8, 16, etc.) for single elimination'
+            : 'Any number of teams (will be distributed across pools)'}
         </p>
       </div>
 
@@ -205,7 +215,11 @@ export default function TournamentForm({ onSuccess }) {
           disabled={loading}
           className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Saving...' : 'Manage Bracket'}
+          {loading
+            ? 'Saving...'
+            : formData.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET
+            ? 'Configure Pools'
+            : 'Manage Bracket'}
         </button>
         <button
           type="button"

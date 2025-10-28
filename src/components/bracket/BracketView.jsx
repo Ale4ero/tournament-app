@@ -13,16 +13,21 @@ export default function BracketView({ tournamentId }) {
     );
   }
 
-  if (matches.length === 0) {
+  // Filter to only show playoff matches (exclude pool matches)
+  const playoffMatches = matches.filter(
+    (match) => match.matchType !== 'pool' && match.round !== null
+  );
+
+  if (playoffMatches.length === 0) {
     return (
       <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-        <p className="text-gray-600 text-lg">No matches scheduled yet</p>
+        <p className="text-gray-600 text-lg">No playoff matches scheduled yet</p>
       </div>
     );
   }
 
   // Get all rounds
-  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
+  const rounds = [...new Set(playoffMatches.map((m) => m.round))].sort((a, b) => a - b);
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -31,7 +36,7 @@ export default function BracketView({ tournamentId }) {
       {/* Mobile: Stack rounds vertically */}
       <div className="lg:hidden space-y-8">
         {rounds.map((round) => {
-          const roundMatches = getMatchesByRound(matches, round);
+          const roundMatches = getMatchesByRound(playoffMatches, round);
           return (
             <div key={round}>
               <h3 className="text-lg font-bold mb-4 text-gray-700">
@@ -51,7 +56,7 @@ export default function BracketView({ tournamentId }) {
       <div className="hidden lg:block overflow-x-auto">
         <div className="flex gap-8 min-w-max">
           {rounds.map((round) => {
-            const roundMatches = getMatchesByRound(matches, round);
+            const roundMatches = getMatchesByRound(playoffMatches, round);
             return (
               <div key={round} className="flex-shrink-0" style={{ width: '240px' }}>
                 <h3 className="text-sm font-bold mb-4 text-gray-700 text-center">
