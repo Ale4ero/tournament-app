@@ -363,9 +363,19 @@ export default function ScoreboardPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <p className="text-sm text-blue-600 font-medium mb-1">Best Of</p>
-                  <p className="text-3xl font-bold text-blue-900">{scoreboard.rules.bestOf}</p>
-                  <p className="text-xs text-blue-700 mt-1">First to {Math.ceil(scoreboard.rules.bestOf / 2)} sets</p>
+                  <p className="text-sm text-blue-600 font-medium mb-1">
+                    {match?.matchType === 'pool' || match?.poolId ? 'Sets' : 'Best Of'}
+                  </p>
+                  <p className="text-3xl font-bold text-blue-900">
+                    {match?.matchType === 'pool' || match?.poolId
+                      ? scoreboard.rules.numSets || scoreboard.rules.bestOf
+                      : scoreboard.rules.bestOf}
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {match?.matchType === 'pool' || match?.poolId
+                      ? 'sets per match'
+                      : `First to ${Math.ceil(scoreboard.rules.bestOf / 2)} sets`}
+                  </p>
                 </div>
 
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200">
@@ -390,9 +400,19 @@ export default function ScoreboardPage() {
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <p className="text-sm font-semibold text-gray-700 mb-2">Summary</p>
                 <p className="text-sm text-gray-600">
-                  Best of {scoreboard.rules.bestOf} sets. First to {scoreboard.rules.firstTo} points per set.
-                  Must win by {scoreboard.rules.winBy} points. Score is capped at {scoreboard.rules.cap}
-                  (win by 1 at cap).
+                  {match?.matchType === 'pool' || match?.poolId ? (
+                    <>
+                      {scoreboard.rules.numSets || scoreboard.rules.bestOf} sets per match. First to{' '}
+                      {scoreboard.rules.firstTo} points per set. Must win by {scoreboard.rules.winBy} points. Score
+                      is capped at {scoreboard.rules.cap}(win by 1 at cap).
+                    </>
+                  ) : (
+                    <>
+                      Best of {scoreboard.rules.bestOf} sets. First to {scoreboard.rules.firstTo} points per set.
+                      Must win by {scoreboard.rules.winBy} points. Score is capped at {scoreboard.rules.cap}
+                      (win by 1 at cap).
+                    </>
+                  )}
                 </p>
               </div>
 
