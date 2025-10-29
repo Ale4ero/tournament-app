@@ -13,8 +13,8 @@ import { deleteTournament } from '../services/tournament.service';
 // Helper function to format tournament type display names
 const formatTournamentType = (type) => {
   const typeMap = {
-    [TOURNAMENT_TYPE.SINGLE_ELIMINATION]: 'Playoffs Bracket',
-    [TOURNAMENT_TYPE.POOL_PLAY_BRACKET]: 'Pool Play + Playoffs',
+    [TOURNAMENT_TYPE.SINGLE_ELIMINATION]: 'Single Elimination',
+    [TOURNAMENT_TYPE.POOL_PLAY_BRACKET]: 'Pool Play + Single Elimination',
   };
   return typeMap[type] || type.replace('-', ' ');
 };
