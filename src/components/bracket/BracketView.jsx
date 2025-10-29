@@ -1,9 +1,27 @@
+import { useState, useEffect } from 'react';
+import { ref, onValue } from 'firebase/database';
+import { database } from '../../services/firebase';
 import { useMatches } from '../../hooks/useMatches';
 import { getMatchesByRound, getRoundName } from '../../utils/bracketGenerator';
 import MatchCard from './MatchCard';
 
 export default function BracketView({ tournamentId }) {
   const { matches, loading } = useMatches(tournamentId);
+  const [playoffSeeding, setPlayoffSeeding] = useState(null);
+
+  // Fetch playoff seeding data
+  useEffect(() => {
+    if (!tournamentId) return;
+
+    const seedingRef = ref(database, `tournaments/${tournamentId}/playoffSeeding`);
+    const unsubscribe = onValue(seedingRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPlayoffSeeding(snapshot.val());
+      }
+    });
+
+    return () => unsubscribe();
+  }, [tournamentId]);
 
   if (loading) {
     return (
@@ -44,7 +62,7 @@ export default function BracketView({ tournamentId }) {
               </h3>
               <div className="space-y-4">
                 {roundMatches.map((match) => (
-                  <MatchCard key={match.id} match={match} />
+                  <MatchCard key={match.id} match={match} playoffSeeding={playoffSeeding} />
                 ))}
               </div>
             </div>
@@ -64,7 +82,7 @@ export default function BracketView({ tournamentId }) {
                 </h3>
                 <div className="space-y-8">
                   {roundMatches.map((match) => (
-                    <MatchCard key={match.id} match={match} compact />
+                    <MatchCard key={match.id} match={match} compact playoffSeeding={playoffSeeding} />
                   ))}
                 </div>
               </div>

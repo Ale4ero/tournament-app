@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MATCH_STATUS } from '../../utils/constants';
 
-export default function MatchCard({ match, compact = false }) {
+export default function MatchCard({ match, compact = false, playoffSeeding }) {
   const getStatusColor = (status) => {
     const colors = {
       [MATCH_STATUS.UPCOMING]: 'border-blue-300 bg-blue-50',
@@ -13,6 +13,13 @@ export default function MatchCard({ match, compact = false }) {
 
   const isWinner = (team) => {
     return match.winner === team;
+  };
+
+  // Get seed number for a team
+  const getSeed = (teamName) => {
+    if (!playoffSeeding?.seeds || !teamName || teamName === 'TBD') return null;
+    const seedInfo = playoffSeeding.seeds.find(s => s.team === teamName);
+    return seedInfo?.seed;
   };
 
   return (
@@ -34,7 +41,14 @@ export default function MatchCard({ match, compact = false }) {
               isWinner(match.team1) ? 'font-bold text-green-700' : ''
             }`}
           >
-            <span className="truncate">{match.team1 || 'TBD'}</span>
+            <span className="truncate">
+              {match.team1 || 'TBD'}
+              {getSeed(match.team1) && (
+                <span className="ml-1 text-xs text-gray-600 font-medium">
+                  (#{getSeed(match.team1)})
+                </span>
+              )}
+            </span>
             {match.score1 !== null && (
               <span className="ml-2 font-semibold">{match.score1}</span>
             )}
@@ -47,7 +61,14 @@ export default function MatchCard({ match, compact = false }) {
               isWinner(match.team2) ? 'font-bold text-green-700' : ''
             }`}
           >
-            <span className="truncate">{match.team2 || 'TBD'}</span>
+            <span className="truncate">
+              {match.team2 || 'TBD'}
+              {getSeed(match.team2) && (
+                <span className="ml-1 text-xs text-gray-600 font-medium">
+                  (#{getSeed(match.team2)})
+                </span>
+              )}
+            </span>
             {match.score2 !== null && (
               <span className="ml-2 font-semibold">{match.score2}</span>
             )}
