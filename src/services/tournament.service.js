@@ -4,6 +4,8 @@ import { DB_PATHS, TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../utils/constants
 import { generateSingleEliminationBracket, generateDefaultMatchRules } from '../utils/bracketGenerator';
 import { getTournamentStatus } from '../utils/tournamentStatus';
 import { createPools, generatePoolMatches, initializePoolStandings, recalculatePoolRanks } from './pool.service';
+import { generateAndSavePlayoffs } from './bracket.service';
+import { buildSeeds } from './advance.service';
 
 /**
  * Create a tournament draft (basic info without bracket)
@@ -108,6 +110,7 @@ export async function createTournamentFromDraft(draftId, matchRules) {
       startDate: draft.startDate,
       teams: draft.teams,
       matchRules,
+      advanceRules: draft.advanceRules || null, // Include advance rules if present
       organizationId: draft.organizationId,
       status: TOURNAMENT_STATUS.UPCOMING,
       createdAt: Date.now(),
@@ -121,22 +124,44 @@ export async function createTournamentFromDraft(draftId, matchRules) {
 
     await set(tournamentRef, tournament);
 
-    // Generate bracket with match rules
+    // Generate bracket with flexible advancement
     if (draft.teams && draft.teams.length > 0) {
-      const matches = generateSingleEliminationBracket(
-        draft.teams,
-        tournamentId,
-        draft.seedingType || 'random',
-        matchRules
-      );
+      // Use flexible bracket generation if advance rules exist
+      if (draft.advanceRules && draft.advanceRules.math) {
+        // Build seeds from teams (manual seeding order)
+        const seeds = buildSeeds(
+          draft.teams.map((team, index) => ({
+            teamId: `team_${index}`,
+            teamName: team,
+            rank: index + 1,
+          }))
+        );
 
-      // Save all matches
-      const matchesRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}`);
-      const matchesData = {};
-      matches.forEach(match => {
-        matchesData[match.id] = match;
-      });
-      await set(matchesRef, matchesData);
+        // Generate playoffs with advance rules
+        await generateAndSavePlayoffs({
+          tournamentId,
+          seeds,
+          format: draft.advanceRules.formatChosen || draft.advanceRules.suggestedFormat || 'byes',
+          math: draft.advanceRules.math,
+          rules: matchRules,
+        });
+      } else {
+        // Fallback to old method for backwards compatibility
+        const matches = generateSingleEliminationBracket(
+          draft.teams,
+          tournamentId,
+          draft.seedingType || 'random',
+          matchRules
+        );
+
+        // Save all matches
+        const matchesRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}`);
+        const matchesData = {};
+        matches.forEach(match => {
+          matchesData[match.id] = match;
+        });
+        await set(matchesRef, matchesData);
+      }
     }
 
     // Delete draft
@@ -178,6 +203,7 @@ export async function createPoolPlayTournamentFromDraft(draftId, poolConfig, pla
       teams: draft.teams,
       poolConfig,
       playoffConfig,
+      advanceRules: draft.advanceRules || null, // Include advance rules from draft
       organizationId: draft.organizationId,
       status: TOURNAMENT_STATUS.UPCOMING,
       createdAt: Date.now(),
@@ -466,4 +492,39 @@ export function subscribeTournamentsByOrganization(organizationId, callback) {
 
     callback(tournaments.sort((a, b) => b.createdAt - a.createdAt));
   });
+}
+
+/**
+ * Generate playoffs from pool standings with flexible advance rules
+ * @param {string} tournamentId - Tournament ID
+ * @param {Array<Object>} standings - Ordered standings with { teamId, teamName, rank }
+ * @param {Object} advanceRules - Advance rules from draft (format, math)
+ * @param {Object} matchRules - Match rules for playoff rounds
+ * @returns {Promise<void>}
+ */
+export async function generatePlayoffsFromStandings(tournamentId, standings, advanceRules, matchRules) {
+  try {
+    // Build seeds from standings
+    const seeds = buildSeeds(standings);
+
+    // Generate and save playoffs using advance rules
+    const { formatChosen, math } = advanceRules;
+    await generateAndSavePlayoffs({
+      tournamentId,
+      seeds,
+      format: formatChosen || 'byes',
+      math,
+      rules: matchRules,
+    });
+
+    // Update tournament status to playoffs
+    await update(ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`), {
+      status: TOURNAMENT_STATUS.PLAYOFFS,
+      phase: 'playoffs',
+      playoffsStartedAt: Date.now(),
+    });
+  } catch (error) {
+    console.error('Error generating playoffs from standings:', error);
+    throw error;
+  }
 }

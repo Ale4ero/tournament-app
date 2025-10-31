@@ -1,0 +1,24 @@
+<div class="site-canvas" id="app">
+  <div class="brackets-canvas">
+    <div class="column" v-for="column in columns" :key="column.name">
+      <template v-for="(item, index) in column.items">
+        <div class="number" :key="item.number">{{item.number}}</div>
+        <div class="item" :class="{'show-brackets': index % 2 == 0 && column.items.length > 1}" :key="item.number + '-item'">
+          <div class="box">
+            <div class="part partOne">
+              <div class="value">{{item.participantOne.value}}</div>
+              <div class="score">0</div>
+            </div>
+            <div class="part partTwo">
+              <div class="value">{{item.participantTwo.value}}</div>
+              <div class="score">0</div>
+            </div>
+          </div>
+          <div class="bracket">
+            <span></span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>

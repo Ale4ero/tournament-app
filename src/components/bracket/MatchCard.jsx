@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MATCH_STATUS } from '../../utils/constants';
 
-export default function MatchCard({ match, compact = false, playoffSeeding }) {
+export default function MatchCard({ match, compact = false, playoffSeeding, bracketMatchNumber, team1SourceMatch, team2SourceMatch }) {
   const getStatusColor = (status) => {
     const colors = {
       [MATCH_STATUS.UPCOMING]: 'border-blue-300 bg-blue-50',
@@ -25,11 +25,18 @@ export default function MatchCard({ match, compact = false, playoffSeeding }) {
   return (
     <Link to={`/match/${match.id}`}>
       <div
-        className={`border-2 rounded-lg p-3 ${getStatusColor(
+        className={`border-2 rounded-lg p-3 relative ${getStatusColor(
           match.status
         )} hover:shadow-md transition-shadow cursor-pointer ${compact ? 'text-sm' : ''}`}
       >
-        {!compact && (
+        {/* Match number in top right */}
+        {bracketMatchNumber && (
+          <div className="absolute top-1 right-2 text-xs text-gray-500 font-medium">
+            #{bracketMatchNumber}
+          </div>
+        )}
+
+        {!compact && !bracketMatchNumber && (
           <div className="text-xs text-gray-600 mb-2">
             Match #{match.matchNumber}
           </div>
@@ -46,6 +53,11 @@ export default function MatchCard({ match, compact = false, playoffSeeding }) {
               {getSeed(match.team1) && (
                 <span className="ml-1 text-xs text-gray-600 font-medium">
                   (#{getSeed(match.team1)})
+                </span>
+              )}
+              {!match.team1 && team1SourceMatch && (
+                <span className="ml-1 text-xs text-gray-500 italic">
+                  winner of #{team1SourceMatch}
                 </span>
               )}
             </span>
@@ -66,6 +78,11 @@ export default function MatchCard({ match, compact = false, playoffSeeding }) {
               {getSeed(match.team2) && (
                 <span className="ml-1 text-xs text-gray-600 font-medium">
                   (#{getSeed(match.team2)})
+                </span>
+              )}
+              {!match.team2 && team2SourceMatch && (
+                <span className="ml-1 text-xs text-gray-500 italic">
+                  winner of #{team2SourceMatch}
                 </span>
               )}
             </span>

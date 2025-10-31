@@ -529,34 +529,63 @@ export async function advanceToPlayoffs(tournamentId, advancePerPool, playoffCon
       await update(standingsRef, updates);
     }
 
-    // Generate playoff bracket with seeded teams
-    const orderedTeams = seededTeams.map((s) => s.team);
-    const playoffMatches = generateSingleEliminationBracket(
-      orderedTeams,
-      tournamentId,
-      'seeded', // Use seeded order, not random
-      playoffConfig.matchRules || {}
-    );
+    // Get tournament to check for advance rules
+    const tournamentRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`);
+    const tournamentSnapshot = await get(tournamentRef);
+    const tournament = tournamentSnapshot.val();
 
-    // Save playoff matches (mark them as playoff type)
-    for (const match of playoffMatches) {
-      const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${match.id}`);
-      await set(matchRef, {
-        ...match,
-        matchType: 'playoff',
-        poolId: null,
-      });
+    console.log('[advanceToPlayoffs] Tournament advanceRules:', tournament.advanceRules);
+
+    // Generate playoff bracket with advance rules (byes or play-ins)
+    if (tournament.advanceRules && tournament.advanceRules.math) {
+      console.log('[advanceToPlayoffs] Using flexible playoff generation with format:', tournament.advanceRules.formatChosen);
+      // Use new flexible playoff generation
+      const { generatePlayoffsFromStandings } = await import('./tournament.service');
+
+      // Convert seededTeams to the format expected by buildSeeds
+      const standingsForPlayoffs = seededTeams.map((s, index) => ({
+        teamId: `team_${index}`,
+        teamName: s.team,
+        rank: s.seed,
+      }));
+
+      await generatePlayoffsFromStandings(
+        tournamentId,
+        standingsForPlayoffs,
+        tournament.advanceRules,
+        playoffConfig.matchRules || {}
+      );
+    } else {
+      console.log('[advanceToPlayoffs] No advance rules found, using fallback standard bracket');
+      // Fallback to old single elimination bracket (backwards compatibility)
+      const orderedTeams = seededTeams.map((s) => s.team);
+      const playoffMatches = generateSingleEliminationBracket(
+        orderedTeams,
+        tournamentId,
+        'seeded', // Use seeded order, not random
+        playoffConfig.matchRules || {}
+      );
+
+      // Save playoff matches (mark them as playoff type)
+      for (const match of playoffMatches) {
+        const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${match.id}`);
+        await set(matchRef, {
+          ...match,
+          matchType: 'playoff',
+          poolId: null,
+        });
+      }
     }
 
-    // Update tournament status to playoffs
-    const tournamentRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`);
+    // Update tournament status to playoffs (reuse tournamentRef from above)
     await update(tournamentRef, {
       status: 'playoffs',
       poolPlayCompletedAt: Date.now(),
       playoffsStartedAt: Date.now(),
     });
 
-    return playoffMatches;
+    // Return success (matches are already saved in generatePlayoffsFromStandings)
+    return true;
   } catch (error) {
     console.error('Error advancing to playoffs:', error);
     throw error;

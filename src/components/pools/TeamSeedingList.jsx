@@ -51,6 +51,7 @@ function SortableTeamItem({ id, index, teamName }) {
       >
         {/* Drag Handle */}
         <button
+          type="button"
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 touch-none"
@@ -105,12 +106,14 @@ export default function TeamSeedingList({ teams, onReorder, onResetAlphabeticall
       {/* Action Buttons */}
       <div className="flex gap-2">
         <button
+          type="button"
           onClick={onResetAlphabetically}
           className="btn-secondary text-sm"
         >
           Reset (A-Z)
         </button>
         <button
+          type="button"
           onClick={onRandomize}
           className="btn-secondary text-sm"
         >

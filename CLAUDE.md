@@ -233,3 +233,61 @@ pages/               # Route-level components
 **Admin can't login**:
 - Verify user exists in Firebase Auth
 - Confirm user has admin role in Realtime Database `/users/{uid}`
+
+## Flexible Playoff Advancement (NEW)
+
+VolleyFlow now supports **any number of teams** advancing to playoffs, not just powers of 2!
+
+### Key Features
+
+- **Smart Format Suggestion**: System automatically recommends Auto-Byes or Play-In format
+- **Auto-Byes**: Top seeds skip Round 1 and advance directly to Round 2
+- **Play-In Matches**: Lowest seeds play extra matches to fill bracket to nearest power of 2
+- **Admin Override**: Manual format selection available
+
+### How to Use
+
+1. **During Tournament Creation** (Pool Play + Playoffs):
+   - Configure pools and teams advancing per pool
+   - The **Playoff Advancement Rules** section appears automatically
+   - System shows live suggestion with math breakdown
+   - Choose format (defaults to suggested) or override
+
+2. **The Math**:
+   - For N teams (not power of 2):
+     - **Lower Power**: Largest power of 2 ≤ N
+     - **Higher Power**: Smallest power of 2 ≥ N
+     - **Byes**: Higher - N teams idle
+     - **Play-Ins**: (N - Lower) × 2 teams playing extra
+   - Suggestion: Recommend format that impacts fewer teams
+
+3. **Examples**:
+   - **10 teams**: Play-In suggested (4 teams play extra vs 6 idle)
+   - **12 teams**: Byes suggested (4 idle vs 8 playing extra)
+   - **9 teams**: Play-In suggested (2 teams play extra vs 7 idle)
+
+### Technical Details
+
+**Services**:
+- `src/services/advance.service.js` - Core algorithms and suggestion logic
+- `src/services/bracket.service.js` - Bracket generation with byes/play-ins
+- `generatePlayoffsFromStandings()` in `tournament.service.js` - Generate playoffs from pools
+
+**Components**:
+- `src/components/advance/AdvanceRulesForm.jsx` - Admin UI for configuration
+- `src/components/advance/useAdvanceRules.js` - State management hook
+- Updated `BracketView.jsx` - Displays play-in rounds separately (purple header)
+
+**Schema**:
+- `tournamentDrafts/{id}/advanceRules` - Stores configuration during setup
+- `tournaments/{id}/advanceRules` - Persisted in tournament
+- `tournaments/{id}/playoffs` - Generated bracket with seeds and rounds
+- `matches/{tid}/{mid}` - Play-in matches have `roundName: "play-in"`
+
+**Full Documentation**: See `ADVANCE_RULES.md` for detailed implementation guide
+
+### No Breaking Changes
+
+- Existing tournaments continue to work
+- Single elimination tournaments unaffected
+- Power-of-2 tournaments work as before (no byes/play-ins needed)

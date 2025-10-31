@@ -10,6 +10,7 @@ export default function CollapsibleCard({ title, summary, children, defaultExpan
     <div className="bg-white rounded-lg border border-gray-200">
       {/* Header */}
       <button
+        type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
       >

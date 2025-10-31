@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
@@ -14,6 +14,9 @@ import TeamSeedingList from '../components/pools/TeamSeedingList';
 import useSeeding from '../components/pools/useSeeding';
 import BracketRulesSection from '../components/bracketRules/BracketRulesSection';
 import useBracketRules from '../components/bracketRules/useBracketRules';
+import AdvanceRulesForm from '../components/advance/AdvanceRulesForm';
+import { suggestPlayoffFormat } from '../services/advance.service';
+import useAdvanceRules from '../components/advance/useAdvanceRules';
 
 /**
  * TournamentSetupPage - Unified page for configuring tournament rules and settings
@@ -48,9 +51,22 @@ export default function TournamentSetupPage() {
 
   const isPoolPlayTournament = draft?.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET;
 
+  // Calculate teams per pool and total advancing (recalculate when dependencies change)
+  const teamsPerPool = useMemo(() => {
+    return isPoolPlayTournament && draft
+      ? Math.floor(draft.teams.length / poolConfig.numPools)
+      : 0;
+  }, [isPoolPlayTournament, draft, poolConfig.numPools]);
+
+  const totalAdvancing = useMemo(() => {
+    return isPoolPlayTournament && draft
+      ? poolConfig.numPools * poolConfig.advancePerPool
+      : 0;
+  }, [isPoolPlayTournament, draft, poolConfig.numPools, poolConfig.advancePerPool]);
+
   // Bracket rules hook for playoff matches
   const numPlayoffTeams = isPoolPlayTournament && draft
-    ? poolConfig.numPools * poolConfig.advancePerPool
+    ? totalAdvancing
     : draft?.teams.length || 0;
 
   const {
@@ -63,6 +79,22 @@ export default function TournamentSetupPage() {
     resetRules: resetPlayoffRules,
     applyTemplate,
   } = useBracketRules(numPlayoffTeams, null);
+
+  // Use advance rules hook (only after draft is loaded)
+  const {
+    advanceRules,
+    updateFormat,
+  } = useAdvanceRules(
+    draftId,
+    isPoolPlayTournament && draft ? totalAdvancing : (draft?.teams?.length || 0)
+  );
+
+  // Calculate playoff format suggestion (recalculate when totalAdvancing changes)
+  const playoffSuggestion = useMemo(() => {
+    return isPoolPlayTournament && totalAdvancing > 0
+      ? suggestPlayoffFormat(totalAdvancing)
+      : null;
+  }, [isPoolPlayTournament, totalAdvancing]);
 
   useEffect(() => {
     loadDraft();
@@ -171,15 +203,7 @@ export default function TournamentSetupPage() {
           return;
         }
 
-        // Check if total advancing teams is a power of 2
-        const isPowerOfTwo = (n) => n > 0 && (n & (n - 1)) === 0;
-        if (!isPowerOfTwo(totalAdvancing)) {
-          setError(
-            `Total advancing teams (${totalAdvancing}) must be a power of 2 for playoff bracket. Adjust pools or teams advancing.`
-          );
-          setCreating(false);
-          return;
-        }
+        // No longer require power of 2 - advance rules handle any number of teams
 
         // Create pool play tournament
         const playoffConfig = { matchRules: playoffRules };
@@ -247,13 +271,6 @@ export default function TournamentSetupPage() {
     );
   }
 
-  const teamsPerPool = isPoolPlayTournament
-    ? Math.floor(draft.teams.length / poolConfig.numPools)
-    : 0;
-  const totalAdvancing = isPoolPlayTournament
-    ? poolConfig.numPools * poolConfig.advancePerPool
-    : 0;
-
   return (
     <Layout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -317,42 +334,70 @@ export default function TournamentSetupPage() {
                     <input
                       type="number"
                       min="1"
-                      max="4"
+                      max={teamsPerPool}
                       value={poolConfig.advancePerPool}
                       onChange={(e) => handlePoolConfigChange('advancePerPool', e.target.value)}
                       className="input-field"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Total advancing: {totalAdvancing} teams
+                      Total advancing: {totalAdvancing} teams (max {teamsPerPool} per pool)
                     </p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Points Per Win
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={poolConfig.pointsPerWin}
-                      onChange={(e) => handlePoolConfigChange('pointsPerWin', e.target.value)}
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Points Per Loss
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={poolConfig.pointsPerLoss}
-                      onChange={(e) => handlePoolConfigChange('pointsPerLoss', e.target.value)}
-                      className="input-field"
-                    />
-                  </div>
                 </div>
+
+                {/* Playoff Format Suggestion */}
+                {playoffSuggestion && playoffSuggestion.suggestion !== 'none' && (
+                  <div className="mt-6 space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Playoff Format Suggestion</h4>
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>Recommended: {playoffSuggestion.suggestion === 'byes' ? 'Auto-Byes' : 'Play-In Matches'}</strong>
+                      </p>
+                      <div className="text-xs text-blue-700 font-mono space-y-1">
+                        <div>Byes: {playoffSuggestion.byes} teams skip Round 1</div>
+                        <div>Play-In Teams: {playoffSuggestion.playIns} teams play extra matches</div>
+                        <div>Lower Bracket: {playoffSuggestion.lower} teams</div>
+                        <div>Upper Bracket: {playoffSuggestion.higher} teams</div>
+                      </div>
+                      <p className="text-xs text-blue-700 mt-2">
+                        {playoffSuggestion.suggestion === 'play-in'
+                          ? `Play-in is suggested because it impacts fewer teams (${playoffSuggestion.playIns} vs ${playoffSuggestion.byes} idle).`
+                          : `Byes are suggested because it impacts fewer teams (${playoffSuggestion.byes} idle vs ${playoffSuggestion.playIns} playing extra).`}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="playoffFormat" className="block text-sm font-medium text-gray-700 mb-2">
+                        Playoff Format
+                      </label>
+                      <select
+                        id="playoffFormat"
+                        value={advanceRules?.formatChosen || playoffSuggestion.suggestion}
+                        onChange={(e) => updateFormat(e.target.value)}
+                        className="input-field w-full md:w-64"
+                      >
+                        <option value="byes">Auto-Byes (Top Seeds Skip Round 1)</option>
+                        <option value="play-in">Play-In Matches (Lowest Seeds Play Extra)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        You can override the suggested format if needed
+                      </p>
+                    </div>
+
+                    {/* Format Explanation */}
+                    <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 space-y-2">
+                      <h5 className="font-semibold text-gray-900">Format Explanation:</h5>
+                      <div>
+                        <strong>Auto-Byes:</strong> The top {playoffSuggestion.byes} seeded teams automatically advance to Round 2.
+                        The remaining {totalAdvancing - playoffSuggestion.byes} teams play in Round 1.
+                      </div>
+                      <div>
+                        <strong>Play-In Matches:</strong> The lowest {playoffSuggestion.playIns} seeded teams play {playoffSuggestion.playIns / 2} play-in
+                        matches. Winners advance to join the top seeds in the main bracket.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Pool Match Rules */}
@@ -443,6 +488,20 @@ export default function TournamentSetupPage() {
             />
           </CollapsibleCard>
 
+          {/* Advance Rules (for single elimination only) */}
+          {!isPoolPlayTournament && (
+            <CollapsibleCard
+              title="Bracket Advancement Rules"
+              summary={`${draft?.teams?.length || 0} teams in bracket`}
+              defaultExpanded={true}
+            >
+              <AdvanceRulesForm
+                draftId={draftId}
+                defaultNumTeams={draft?.teams?.length || 0}
+              />
+            </CollapsibleCard>
+          )}
+
           {/* Summary */}
           {isPoolPlayTournament && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -458,7 +517,9 @@ export default function TournamentSetupPage() {
                   • Pool matches: {poolConfig.poolMatchRules.numSets} sets per match, first to{' '}
                   {poolConfig.poolMatchRules.firstTo}
                 </li>
-                <li>• Playoff bracket: {totalAdvancing}-team single elimination</li>
+                <li>
+                  • Playoff bracket: {totalAdvancing}-team {playoffSuggestion?.suggestion === 'play-in' ? 'with play-ins' : 'with byes'}
+                </li>
               </ul>
             </div>
           )}

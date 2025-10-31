@@ -43,17 +43,7 @@ export default function TournamentForm({ onSuccess }) {
         return;
       }
 
-      // Check if teams is a power of 2 for single elimination only
-      if (formData.type === TOURNAMENT_TYPE.SINGLE_ELIMINATION) {
-        const isPowerOfTwo = (n) => n > 0 && (n & (n - 1)) === 0;
-        if (!isPowerOfTwo(teams.length)) {
-          setError(
-            `Single elimination requires a power of 2 teams (2, 4, 8, 16, etc.). You have ${teams.length} teams.`
-          );
-          setLoading(false);
-          return;
-        }
-      }
+      // No longer require power of 2 - flexible playoff advancement handles any team count
 
       const draftData = {
         name: formData.name,
@@ -199,7 +189,7 @@ export default function TournamentForm({ onSuccess }) {
         />
         <p className="text-xs text-gray-500 mt-1">
           {formData.type === TOURNAMENT_TYPE.SINGLE_ELIMINATION
-            ? 'Must be a power of 2 (2, 4, 8, 16, etc.) for single elimination'
+            ? 'Any number of teams (system will handle byes or play-ins automatically)'
             : 'Any number of teams (will be distributed across pools)'}
         </p>
       </div>
