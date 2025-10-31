@@ -113,7 +113,7 @@ export default function BracketView({ tournamentId }) {
         <div className="flex items-start min-w-max" style={{ minHeight: '500px' }}>
           {/* Play-in Round (if exists) */}
           {playInMatches.length > 0 && (
-            <div className="flex-1 px-5 pb-2.5 pl-2.5 flex flex-col">
+            <div className="flex-1 px-5 pb-2.5 pl-5 flex flex-col">
               {playInMatches.map((match, idx) => {
                 // Calculate spacing to align with corresponding quarter-final match
                 // Quarter-finals render with marginTop = matchGap between each match
@@ -140,6 +140,7 @@ export default function BracketView({ tournamentId }) {
                         compact
                         playoffSeeding={playoffSeeding}
                         bracketMatchNumber={bracketNumber}
+                        isPlayIn={true}
                       />
                     </div>
 
@@ -189,27 +190,30 @@ export default function BracketView({ tournamentId }) {
             const prevRoundPositions = [];
 
             if (roundIndex === 0) {
-              // For quarter-finals, calculate positions based on their actual layout
-              const qfGap = baseGap * 2;
+              // For first round, calculate positions based on their actual layout
+              // Gap multiplier depends on whether there are play-ins
+              const firstRoundMultiplier = playInMatches.length > 0 ? 2 : 1;
+              const firstRoundGap = baseGap * firstRoundMultiplier;
               let cumulativePos = 0;
               for (let i = 0; i < roundMatches.length; i++) {
-                if (i > 0) cumulativePos += matchHeight + qfGap;
+                if (i > 0) cumulativePos += matchHeight + firstRoundGap;
                 prevRoundPositions.push(cumulativePos + (matchHeight / 2));
               }
             } else {
               // For subsequent rounds, we need to calculate based on their predecessors
-              // Start with quarter-finals positions
-              const qfPositions = [];
-              const qfGap = baseGap * 2;
+              // Start with first round positions
+              const firstRoundPositions = [];
+              const firstRoundMultiplier = playInMatches.length > 0 ? 2 : 1;
+              const firstRoundGap = baseGap * firstRoundMultiplier;
               let cumulativePos = 0;
-              const qfCount = getMatchesByRound(regularMatches, rounds[0]).length;
-              for (let i = 0; i < qfCount; i++) {
-                if (i > 0) cumulativePos += matchHeight + qfGap;
-                qfPositions.push(cumulativePos + (matchHeight / 2));
+              const firstRoundCount = getMatchesByRound(regularMatches, rounds[0]).length;
+              for (let i = 0; i < firstRoundCount; i++) {
+                if (i > 0) cumulativePos += matchHeight + firstRoundGap;
+                firstRoundPositions.push(cumulativePos + (matchHeight / 2));
               }
 
               // Now calculate positions for each round leading up to previous round
-              let currentRoundPositions = qfPositions;
+              let currentRoundPositions = firstRoundPositions;
               for (let r = 1; r < roundIndex; r++) {
                 const nextRoundCount = Math.ceil(currentRoundPositions.length / 2);
                 const nextRoundPositions = [];
@@ -225,7 +229,7 @@ export default function BracketView({ tournamentId }) {
             }
 
             return (
-              <div key={round} className="flex-1 px-5 pb-2.5 pl-2.5 flex flex-col">
+              <div key={round} className="flex-1 px-5 pb-2.5 pl-7 flex flex-col">
                 {roundMatches.map((match, idx) => {
                   const isTopOfPair = idx % 2 === 0;
                   const hasPartner = idx + 1 < roundMatches.length;

@@ -1,8 +1,19 @@
 import { Link } from 'react-router-dom';
 import { MATCH_STATUS } from '../../utils/constants';
 
-export default function MatchCard({ match, compact = false, playoffSeeding, bracketMatchNumber, team1SourceMatch, team2SourceMatch }) {
+export default function MatchCard({ match, compact = false, playoffSeeding, bracketMatchNumber, team1SourceMatch, team2SourceMatch, isPlayIn = false }) {
   const getStatusColor = (status) => {
+    // Play-in matches get purple color scheme
+    if (isPlayIn) {
+      const purpleColors = {
+        [MATCH_STATUS.UPCOMING]: 'border-purple-300 bg-purple-50',
+        [MATCH_STATUS.LIVE]: 'border-purple-400 bg-purple-100',
+        [MATCH_STATUS.COMPLETED]: 'border-purple-300 bg-purple-50',
+      };
+      return purpleColors[status] || 'border-purple-300 bg-purple-50';
+    }
+
+    // Regular matches get standard color scheme
     const colors = {
       [MATCH_STATUS.UPCOMING]: 'border-blue-300 bg-blue-50',
       [MATCH_STATUS.LIVE]: 'border-green-400 bg-green-50',
@@ -23,18 +34,19 @@ export default function MatchCard({ match, compact = false, playoffSeeding, brac
   };
 
   return (
-    <Link to={`/match/${match.id}`}>
+    <Link to={`/match/${match.id}`} className="relative">
+      {/* Match number outside container, left side, vertically centered */}
+      {bracketMatchNumber && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-1 text-xs text-gray-500 font-medium">
+          #{bracketMatchNumber}
+        </div>
+      )}
+
       <div
-        className={`border-2 rounded-lg p-3 relative ${getStatusColor(
+        className={`border-2 rounded-lg p-3 ${getStatusColor(
           match.status
         )} hover:shadow-md transition-shadow cursor-pointer ${compact ? 'text-sm' : ''}`}
       >
-        {/* Match number in top right */}
-        {bracketMatchNumber && (
-          <div className="absolute top-1 right-2 text-xs text-gray-500 font-medium">
-            #{bracketMatchNumber}
-          </div>
-        )}
 
         {!compact && !bracketMatchNumber && (
           <div className="text-xs text-gray-600 mb-2">
