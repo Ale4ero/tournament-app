@@ -46,9 +46,9 @@ export default function PoolCard({ pool, tournamentId }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
       {/* Pool Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-4">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xl font-bold">{pool.name}</h3>
+          <h3 className="text-2xl font-bold">{pool.name}</h3>
           <span className={`text-xs font-medium px-3 py-1 rounded-full ${getStatusBadge(pool.status)}`}>
             {getStatusText(pool.status)}
           </span>

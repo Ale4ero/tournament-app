@@ -20,7 +20,18 @@ export default function usePoolMatches(tournamentId, poolId) {
     const unsubscribe = subscribeMatches(tournamentId, (allMatches) => {
       // Filter for matches belonging to this pool
       const poolMatches = allMatches.filter((match) => match.poolId === poolId);
-      setMatches(poolMatches);
+
+      // Sort by matchOrder if it exists, otherwise by matchNumber
+      const sortedMatches = poolMatches.sort((a, b) => {
+        // If both have matchOrder, sort by that
+        if (a.matchOrder !== undefined && b.matchOrder !== undefined) {
+          return a.matchOrder - b.matchOrder;
+        }
+        // Otherwise fallback to matchNumber
+        return (a.matchNumber || 0) - (b.matchNumber || 0);
+      });
+
+      setMatches(sortedMatches);
       setLoading(false);
     });
 

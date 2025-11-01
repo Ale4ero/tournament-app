@@ -871,3 +871,20 @@ async function clearMatchAndDescendants(tournamentId, match, allMatches) {
     }
   }
 }
+
+/**
+ * Update match order for drag-and-drop reordering
+ * @param {string} tournamentId - Tournament ID
+ * @param {string} matchId - Match ID
+ * @param {number} matchOrder - New order index
+ */
+export async function updateMatchOrder(tournamentId, matchId, matchOrder) {
+  try {
+    const matchRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}/${matchId}`);
+    await update(matchRef, { matchOrder });
+    console.log(`Updated match ${matchId} order to ${matchOrder}`);
+  } catch (error) {
+    console.error('Error updating match order:', error);
+    throw error;
+  }
+}
