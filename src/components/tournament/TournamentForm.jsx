@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTournamentDraft } from '../../services/tournament.service';
 import { useAuth } from '../../contexts/AuthContext';
-import { TOURNAMENT_TYPE, SEEDING_TYPE } from '../../utils/constants';
+import { TOURNAMENT_TYPE } from '../../utils/constants';
 
 export default function TournamentForm({ onSuccess }) {
   const { user, organizationId } = useAuth();
@@ -14,7 +14,6 @@ export default function TournamentForm({ onSuccess }) {
     name: '',
     description: '',
     type: TOURNAMENT_TYPE.SINGLE_ELIMINATION,
-    seedingType: SEEDING_TYPE.RANDOM,
     startDate: '',
     endDate: '',
     teams: '',
@@ -49,7 +48,6 @@ export default function TournamentForm({ onSuccess }) {
         name: formData.name,
         description: formData.description,
         type: formData.type,
-        seedingType: formData.seedingType,
         startDate: formData.startDate ? new Date(formData.startDate).getTime() : Date.now(),
         teams,
       };
@@ -123,22 +121,6 @@ export default function TournamentForm({ onSuccess }) {
           >
             <option value={TOURNAMENT_TYPE.SINGLE_ELIMINATION}>Single Elimination</option>
             <option value={TOURNAMENT_TYPE.POOL_PLAY_BRACKET}>Pool Play + Single Elimination</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="seedingType" className="block text-sm font-medium text-gray-700 mb-2">
-            Seeding Type
-          </label>
-          <select
-            id="seedingType"
-            name="seedingType"
-            value={formData.seedingType}
-            onChange={handleChange}
-            className="input-field"
-          >
-            <option value={SEEDING_TYPE.RANDOM}>Random</option>
-            <option value={SEEDING_TYPE.MANUAL}>Manual (order matters)</option>
           </select>
         </div>
       </div>

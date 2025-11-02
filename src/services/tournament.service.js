@@ -106,7 +106,7 @@ export async function createTournamentFromDraft(draftId, matchRules) {
       name: draft.name,
       description: draft.description,
       type: draft.type,
-      seedingType: draft.seedingType,
+      seedingType: draft.seedingType || 'manual', // Default to manual since admin controls seeding
       startDate: draft.startDate,
       teams: draft.teams,
       matchRules,
@@ -198,7 +198,7 @@ export async function createPoolPlayTournamentFromDraft(draftId, poolConfig, pla
       name: draft.name,
       description: draft.description,
       type: TOURNAMENT_TYPE.POOL_PLAY_BRACKET,
-      seedingType: draft.seedingType,
+      seedingType: draft.seedingType || 'manual', // Default to manual since admin controls seeding
       startDate: draft.startDate,
       teams: draft.teams,
       poolConfig,
@@ -262,7 +262,7 @@ export async function createTournament(tournamentData, adminUid, organizationId)
       name: tournamentData.name,
       description: tournamentData.description,
       type: tournamentData.type,
-      seedingType: tournamentData.seedingType,
+      seedingType: tournamentData.seedingType || 'manual', // Default to manual since admin controls seeding
       startDate: tournamentData.startDate,
       teams: tournamentData.teams,
       matchRules,
