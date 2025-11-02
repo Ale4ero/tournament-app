@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
 import {
@@ -7,7 +7,10 @@ import {
   createTournamentFromDraft,
   createPoolPlayTournamentFromDraft,
   deleteTournamentDraft,
+  getTournamentById,
+  updateTournament,
 } from '../services/tournament.service';
+import { getPools } from '../services/pool.service';
 import { DEFAULT_POOL_CONFIG, TOURNAMENT_TYPE } from '../utils/constants';
 import CollapsibleCard from '../components/pools/CollapsibleCard';
 import TeamSeedingList from '../components/pools/TeamSeedingList';
@@ -24,12 +27,15 @@ import useAdvanceRules from '../components/advance/useAdvanceRules';
  */
 export default function TournamentSetupPage() {
   const { draftId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [actualPools, setActualPools] = useState([]);
 
   // Pool Play configuration (only used for pool_play_bracket type)
   const [poolConfig, setPoolConfig] = useState({
@@ -37,6 +43,7 @@ export default function TournamentSetupPage() {
     pointsPerWin: DEFAULT_POOL_CONFIG.pointsPerWin,
     pointsPerLoss: DEFAULT_POOL_CONFIG.pointsPerLoss,
     advancePerPool: DEFAULT_POOL_CONFIG.advancePerPool,
+    advancePerPoolCustom: null, // Object: { poolA: 2, poolB: 3, ... }
     poolMatchRules: { ...DEFAULT_POOL_CONFIG.poolMatchRules },
   });
 
@@ -51,18 +58,37 @@ export default function TournamentSetupPage() {
 
   const isPoolPlayTournament = draft?.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET;
 
-  // Calculate teams per pool and total advancing (recalculate when dependencies change)
-  const teamsPerPool = useMemo(() => {
-    return isPoolPlayTournament && draft
-      ? Math.floor(draft.teams.length / poolConfig.numPools)
-      : 0;
+  // Calculate pool sizes - handles uneven distribution
+  const poolSizes = useMemo(() => {
+    if (!isPoolPlayTournament || !draft) return [];
+
+    const totalTeams = draft.teams.length;
+    const numPools = poolConfig.numPools;
+    const baseSize = Math.floor(totalTeams / numPools);
+    const remainder = totalTeams % numPools;
+
+    // First 'remainder' pools get an extra team
+    const sizes = [];
+    for (let i = 0; i < numPools; i++) {
+      sizes.push(i < remainder ? baseSize + 1 : baseSize);
+    }
+    return sizes;
   }, [isPoolPlayTournament, draft, poolConfig.numPools]);
 
+  // Calculate teams per pool for display (backward compatibility)
+  const teamsPerPool = poolSizes.length > 0 ? Math.min(...poolSizes) : 0;
+
   const totalAdvancing = useMemo(() => {
-    return isPoolPlayTournament && draft
-      ? poolConfig.numPools * poolConfig.advancePerPool
-      : 0;
-  }, [isPoolPlayTournament, draft, poolConfig.numPools, poolConfig.advancePerPool]);
+    if (!isPoolPlayTournament || !draft) return 0;
+
+    // If custom advancement is set, sum up all custom values
+    if (poolConfig.advancePerPoolCustom) {
+      return Object.values(poolConfig.advancePerPoolCustom).reduce((sum, val) => sum + parseInt(val || 0), 0);
+    }
+
+    // Otherwise use uniform advancement
+    return poolConfig.numPools * poolConfig.advancePerPool;
+  }, [isPoolPlayTournament, draft, poolConfig.numPools, poolConfig.advancePerPool, poolConfig.advancePerPoolCustom]);
 
   // Bracket rules hook for playoff matches
   const numPlayoffTeams = isPoolPlayTournament && draft
@@ -86,7 +112,8 @@ export default function TournamentSetupPage() {
     updateFormat,
   } = useAdvanceRules(
     draftId,
-    isPoolPlayTournament && draft ? totalAdvancing : (draft?.teams?.length || 0)
+    isPoolPlayTournament && draft ? totalAdvancing : (draft?.teams?.length || 0),
+    isEditMode
   );
 
   // Calculate playoff format suggestion (recalculate when totalAdvancing changes)
@@ -97,30 +124,73 @@ export default function TournamentSetupPage() {
   }, [isPoolPlayTournament, totalAdvancing]);
 
   useEffect(() => {
-    loadDraft();
+    const editMode = searchParams.get('edit') === 'true';
+    setIsEditMode(editMode);
+    loadDraft(editMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId]);
+  }, [draftId, searchParams]);
 
-  const loadDraft = async () => {
+  const loadDraft = async (editMode = false) => {
     try {
       setLoading(true);
-      const draftData = await getTournamentDraft(draftId);
 
-      if (!draftData) {
-        setError('Draft not found. It may have already been used or deleted.');
+      if (editMode) {
+        // Edit mode: Load existing tournament
+        const tournamentData = await getTournamentById(draftId);
+
+        if (!tournamentData) {
+          setError('Tournament not found.');
+          setLoading(false);
+          return;
+        }
+
+        // Verify that the current user has permission (is admin of the org)
+        if (!isAdmin) {
+          setError('You do not have permission to edit this tournament.');
+          setLoading(false);
+          return;
+        }
+
+        // Convert tournament to draft-like format for the form
+        setDraft({
+          ...tournamentData,
+          seedOrder: tournamentData.seedOrder || tournamentData.teams,
+        });
+
+        // Load pool config if it's a pool play tournament
+        if (tournamentData.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET && tournamentData.poolConfig) {
+          setPoolConfig(tournamentData.poolConfig);
+
+          // Load actual pools to get correct pool IDs and order
+          try {
+            const pools = await getPools(draftId);
+            setActualPools(pools);
+          } catch (err) {
+            console.error('Error loading pools:', err);
+          }
+        }
+
         setLoading(false);
-        return;
-      }
+      } else {
+        // Draft mode: Load draft
+        const draftData = await getTournamentDraft(draftId);
 
-      // Verify that the current user created this draft
-      if (draftData.createdBy !== user.uid) {
-        setError('You do not have permission to edit this draft.');
+        if (!draftData) {
+          setError('Draft not found. It may have already been used or deleted.');
+          setLoading(false);
+          return;
+        }
+
+        // Verify that the current user created this draft
+        if (draftData.createdBy !== user.uid) {
+          setError('You do not have permission to edit this draft.');
+          setLoading(false);
+          return;
+        }
+
+        setDraft(draftData);
         setLoading(false);
-        return;
       }
-
-      setDraft(draftData);
-      setLoading(false);
     } catch (err) {
       console.error('Error loading draft:', err);
       setError('Failed to load tournament draft.');
@@ -130,7 +200,12 @@ export default function TournamentSetupPage() {
 
   // Pool configuration handlers
   const handlePoolConfigChange = (field, value) => {
-    setPoolConfig((prev) => ({ ...prev, [field]: parseInt(value, 10) }));
+    // For advancePerPoolCustom, the value is already an object, don't parse it
+    if (field === 'advancePerPoolCustom') {
+      setPoolConfig((prev) => ({ ...prev, [field]: value }));
+    } else {
+      setPoolConfig((prev) => ({ ...prev, [field]: parseInt(value, 10) }));
+    }
   };
 
   const handlePoolMatchRulesChange = (field, value) => {
@@ -162,7 +237,7 @@ export default function TournamentSetupPage() {
     });
   };
 
-  // Create tournament handler
+  // Create or update tournament handler
   const handleCreateTournament = async (e) => {
     e.preventDefault();
     setError('');
@@ -176,65 +251,91 @@ export default function TournamentSetupPage() {
     try {
       setCreating(true);
 
-      if (isPoolPlayTournament) {
-        // Pool Play + Playoffs validation
-        if (poolConfig.numPools < 2) {
-          setError('Must have at least 2 pools');
-          setCreating(false);
-          return;
+      if (isEditMode) {
+        // Edit mode: Update existing tournament configuration
+        const updates = {};
+
+        if (isPoolPlayTournament) {
+          updates.poolConfig = poolConfig;
+          updates.playoffConfig = { matchRules: playoffRules };
+        } else {
+          updates.matchRules = playoffRules;
         }
 
-        if (draft.teams.length < poolConfig.numPools) {
-          setError('Number of pools cannot exceed number of teams');
-          setCreating(false);
-          return;
+        // Save advance rules if they exist
+        if (draft.advanceRules) {
+          updates.advanceRules = draft.advanceRules;
         }
 
-        if (poolConfig.advancePerPool < 1) {
-          setError('At least 1 team must advance from each pool');
-          setCreating(false);
-          return;
-        }
+        await updateTournament(draftId, updates);
 
-        const totalAdvancing = poolConfig.numPools * poolConfig.advancePerPool;
-        if (totalAdvancing > draft.teams.length) {
-          setError('Too many teams advancing (more than total teams)');
-          setCreating(false);
-          return;
-        }
-
-        // No longer require power of 2 - advance rules handle any number of teams
-
-        // Create pool play tournament
-        const playoffConfig = { matchRules: playoffRules };
-        const tournamentId = await createPoolPlayTournamentFromDraft(
-          draftId,
-          poolConfig,
-          playoffConfig
-        );
-
-        navigate(`/tournament/${tournamentId}`, {
-          state: { message: 'Pool play tournament created successfully!' },
+        navigate(`/tournament/${draftId}`, {
+          state: { message: 'Tournament configuration updated successfully!' },
         });
       } else {
-        // Single Elimination tournament
-        const tournamentId = await createTournamentFromDraft(draftId, playoffRules);
-        navigate(`/tournament/${tournamentId}`);
+        // Create mode: Create new tournament from draft
+        if (isPoolPlayTournament) {
+          // Pool Play + Playoffs validation
+          if (poolConfig.numPools < 2) {
+            setError('Must have at least 2 pools');
+            setCreating(false);
+            return;
+          }
+
+          if (draft.teams.length < poolConfig.numPools) {
+            setError('Number of pools cannot exceed number of teams');
+            setCreating(false);
+            return;
+          }
+
+          if (poolConfig.advancePerPool < 1) {
+            setError('At least 1 team must advance from each pool');
+            setCreating(false);
+            return;
+          }
+
+          const totalAdvancing = poolConfig.numPools * poolConfig.advancePerPool;
+          if (totalAdvancing > draft.teams.length) {
+            setError('Too many teams advancing (more than total teams)');
+            setCreating(false);
+            return;
+          }
+
+          // No longer require power of 2 - advance rules handle any number of teams
+
+          // Create pool play tournament
+          const playoffConfig = { matchRules: playoffRules };
+          const tournamentId = await createPoolPlayTournamentFromDraft(
+            draftId,
+            poolConfig,
+            playoffConfig
+          );
+
+          navigate(`/tournament/${tournamentId}`, {
+            state: { message: 'Pool play tournament created successfully!' },
+          });
+        } else {
+          // Single Elimination tournament
+          const tournamentId = await createTournamentFromDraft(draftId, playoffRules);
+          navigate(`/tournament/${tournamentId}`);
+        }
       }
     } catch (err) {
       console.error('Error creating tournament:', err);
-      setError(err.message || 'Failed to create tournament');
+      setError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} tournament`);
       setCreating(false);
     }
   };
 
   const handleCancel = async () => {
     try {
-      await deleteTournamentDraft(draftId);
-      navigate('/admin');
+      if (!isEditMode) {
+        await deleteTournamentDraft(draftId);
+      }
+      navigate(isEditMode ? `/tournament/${draftId}` : '/admin');
     } catch (err) {
       console.error('Error cancelling:', err);
-      navigate('/admin');
+      navigate(isEditMode ? `/tournament/${draftId}` : '/admin');
     }
   };
 
@@ -277,7 +378,9 @@ export default function TournamentSetupPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isPoolPlayTournament ? 'Configure Pool Play & Playoffs' : 'Configure Tournament'}
+            {isEditMode
+              ? (isPoolPlayTournament ? 'Edit Pool Play & Playoff Configuration' : 'Edit Tournament Configuration')
+              : (isPoolPlayTournament ? 'Configure Pool Play & Playoffs' : 'Configure Tournament')}
           </h1>
           <p className="text-gray-600">
             Set up rules and settings for: <span className="font-semibold">{draft.name}</span>
@@ -324,24 +427,80 @@ export default function TournamentSetupPage() {
                       onChange={(e) => handlePoolConfigChange('numPools', e.target.value)}
                       className="input-field"
                     />
-                    <p className="text-xs text-gray-500 mt-1">~{teamsPerPool} teams per pool</p>
+                    {poolSizes.length > 0 && (
+                      <div className="text-xs text-gray-600 mt-2 space-y-1">
+                        {poolSizes.every(size => size === poolSizes[0]) ? (
+                          <p className="text-gray-500">{poolSizes[0]} teams per pool</p>
+                        ) : (
+                          <>
+                            <p className="font-medium text-amber-700">⚠ Uneven pool distribution:</p>
+                            {poolSizes.map((size, idx) => (
+                              <p key={idx} className="text-gray-600">
+                                • Pool {String.fromCharCode(65 + idx)}: {size} teams
+                              </p>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Teams Advancing Per Pool
                     </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max={teamsPerPool}
-                      value={poolConfig.advancePerPool}
-                      onChange={(e) => handlePoolConfigChange('advancePerPool', e.target.value)}
-                      className="input-field"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Total advancing: {totalAdvancing} teams (max {teamsPerPool} per pool)
-                    </p>
+                    {poolSizes.length > 0 && poolSizes.every(size => size === poolSizes[0]) ? (
+                      // Uniform pool sizes - single input
+                      <>
+                        <input
+                          type="number"
+                          min="1"
+                          max={teamsPerPool}
+                          value={poolConfig.advancePerPool}
+                          onChange={(e) => handlePoolConfigChange('advancePerPool', e.target.value)}
+                          className="input-field"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Total advancing: {totalAdvancing} teams (max {teamsPerPool} per pool)
+                        </p>
+                      </>
+                    ) : (
+                      // Uneven pool sizes - per-pool inputs
+                      <div className="space-y-2">
+                        {(isEditMode && actualPools.length > 0 ? actualPools : poolSizes.map((size, idx) => ({
+                          id: `pool_${String.fromCharCode(65 + idx)}`,
+                          name: `Pool ${String.fromCharCode(65 + idx)}`,
+                          teams: { length: size }
+                        }))).map((pool, idx) => {
+                          const poolId = pool.id;
+                          const poolName = pool.name;
+                          const size = pool.teams?.length || poolSizes[idx];
+                          const customValue = poolConfig.advancePerPoolCustom?.[poolId] ?? poolConfig.advancePerPool;
+
+                          return (
+                            <div key={poolId} className="flex items-center gap-2">
+                              <label className="text-sm text-gray-700 w-20">{poolName}:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max={size}
+                                value={customValue}
+                                onChange={(e) => {
+                                  const newCustom = { ...(poolConfig.advancePerPoolCustom || {}) };
+                                  newCustom[poolId] = parseInt(e.target.value) || 1;
+                                  handlePoolConfigChange('advancePerPoolCustom', newCustom);
+                                }}
+                                className="input-field flex-1"
+                              />
+                              <span className="text-xs text-gray-500 w-24">of {size} teams</span>
+                            </div>
+                          );
+                        })}
+                        <p className="text-xs text-gray-500 mt-2">
+                          Total advancing: {totalAdvancing} teams
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -511,7 +670,9 @@ export default function TournamentSetupPage() {
                   • {poolConfig.numPools} pools with ~{teamsPerPool} teams each
                 </li>
                 <li>
-                  • Top {poolConfig.advancePerPool} from each pool advance ({totalAdvancing} total)
+                  • {poolConfig.advancePerPoolCustom && Object.keys(poolConfig.advancePerPoolCustom).length > 0
+                    ? `Custom advancement per pool (${totalAdvancing} total)`
+                    : `Top ${poolConfig.advancePerPool} from each pool advance (${totalAdvancing} total)`}
                 </li>
                 <li>
                   • Pool matches: {poolConfig.poolMatchRules.numSets} sets per match, first to{' '}
@@ -539,7 +700,9 @@ export default function TournamentSetupPage() {
               disabled={creating || !rulesValid}
               className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {creating ? 'Creating Tournament...' : 'Create Tournament'}
+              {creating
+                ? (isEditMode ? 'Saving Changes...' : 'Creating Tournament...')
+                : (isEditMode ? 'Save Configuration' : 'Create Tournament')}
             </button>
           </div>
         </form>

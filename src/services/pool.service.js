@@ -448,12 +448,12 @@ export function subscribePoolStandings(tournamentId, poolId, callback) {
 /**
  * Advance top teams from pools to playoffs
  * @param {string} tournamentId - Tournament ID
- * @param {number} advancePerPool - Number of teams to advance from each pool
+ * @param {Object} poolConfig - Pool configuration (includes advancePerPool and optional advancePerPoolCustom)
  * @param {Object} playoffConfig - Playoff bracket configuration
  * @param {string} adminUid - Admin user ID
  * @returns {Promise<Array>} Generated playoff matches
  */
-export async function advanceToPlayoffs(tournamentId, advancePerPool, playoffConfig, adminUid) {
+export async function advanceToPlayoffs(tournamentId, poolConfig, playoffConfig, adminUid) {
   try {
     // Get all pools
     const pools = await getPools(tournamentId);
@@ -470,7 +470,14 @@ export async function advanceToPlayoffs(tournamentId, advancePerPool, playoffCon
 
     for (const pool of pools) {
       const standings = await getPoolStandings(tournamentId, pool.id);
-      const topTeams = standings.slice(0, advancePerPool);
+
+      // Determine how many teams advance from this specific pool
+      let numToAdvance = poolConfig.advancePerPool; // Default
+      if (poolConfig.advancePerPoolCustom && poolConfig.advancePerPoolCustom[pool.id]) {
+        numToAdvance = poolConfig.advancePerPoolCustom[pool.id];
+      }
+
+      const topTeams = standings.slice(0, numToAdvance);
 
       topTeams.forEach((standing, index) => {
         advancingTeams.push(standing.team);

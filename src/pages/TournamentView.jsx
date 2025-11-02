@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
+import { useMatches } from '../hooks/useMatches';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
 import BracketView from '../components/bracket/BracketView';
 import PoolList from '../components/pools/PoolList';
 import AdvanceToPlayoffsButton from '../components/pools/AdvanceToPlayoffsButton';
 import { formatDate } from '../utils/tournamentStatus';
-import { TOURNAMENT_STATUS, TOURNAMENT_TYPE } from '../utils/constants';
+import { TOURNAMENT_STATUS, TOURNAMENT_TYPE, MATCH_STATUS } from '../utils/constants';
 import { deleteTournament } from '../services/tournament.service';
 
 // Helper function to format tournament type display names
@@ -22,6 +23,7 @@ const formatTournamentType = (type) => {
 export default function TournamentView() {
   const { id } = useParams();
   const { tournament, loading } = useTournament(id);
+  const { matches, loading: matchesLoading } = useMatches(id);
   const { isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -99,6 +101,9 @@ export default function TournamentView() {
   // Check if this is a pool play tournament
   const isPoolPlayTournament = tournament?.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET;
 
+  // Check if any matches have been completed (to disable editing)
+  const hasCompletedMatches = matches.some(match => match.status === MATCH_STATUS.COMPLETED);
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -120,12 +125,22 @@ export default function TournamentView() {
                 {getStatusText(tournament.status)}
               </span>
               {isAdmin && (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                >
-                  Delete Tournament
-                </button>
+                <>
+                  <button
+                    onClick={() => navigate(`/tournaments/setup/${id}?edit=true`)}
+                    disabled={hasCompletedMatches}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+                    title={hasCompletedMatches ? 'Cannot edit tournament after matches have been played' : 'Edit tournament configuration'}
+                  >
+                    Edit Config
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                  >
+                    Delete Tournament
+                  </button>
+                </>
               )}
             </div>
           </div>

@@ -12,11 +12,12 @@ import { suggestPlayoffFormat, computeAdvancementMath } from '../../services/adv
 
 /**
  * Hook for managing advance rules
- * @param {string} draftId - Tournament draft ID
+ * @param {string} draftId - Tournament draft ID (or tournament ID in edit mode)
  * @param {number} defaultNumTeams - Default number of teams advancing
+ * @param {boolean} isEditMode - Whether we're editing an existing tournament
  * @returns {Object} Advance rules state and handlers
  */
-export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
+export default function useAdvanceRules(draftId, defaultNumTeams = 8, isEditMode = false) {
   const [advanceRules, setAdvanceRules] = useState({
     numTeamsAdvancing: defaultNumTeams,
     formatChosen: null,
@@ -27,14 +28,16 @@ export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load existing advance rules from draft
+  // Load existing advance rules from draft or tournament
   useEffect(() => {
     if (!draftId) {
       setLoading(false);
       return;
     }
 
-    const rulesRef = ref(database, `${DB_PATHS.TOURNAMENT_DRAFTS}/${draftId}/advanceRules`);
+    // Use tournament path in edit mode, draft path otherwise
+    const basePath = isEditMode ? DB_PATHS.TOURNAMENTS : DB_PATHS.TOURNAMENT_DRAFTS;
+    const rulesRef = ref(database, `${basePath}/${draftId}/advanceRules`);
     const unsubscribe = onValue(
       rulesRef,
       async (snapshot) => {
@@ -76,7 +79,7 @@ export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
     );
 
     return () => unsubscribe();
-  }, [draftId, defaultNumTeams]);
+  }, [draftId, defaultNumTeams, isEditMode]);
 
   /**
    * Updates the number of teams advancing and recalculates suggestion
@@ -97,7 +100,8 @@ export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
           math: suggestion,
         };
 
-        const rulesRef = ref(database, `${DB_PATHS.TOURNAMENT_DRAFTS}/${draftId}/advanceRules`);
+        const basePath = isEditMode ? DB_PATHS.TOURNAMENTS : DB_PATHS.TOURNAMENT_DRAFTS;
+        const rulesRef = ref(database, `${basePath}/${draftId}/advanceRules`);
         await update(rulesRef, newRules);
 
         setAdvanceRules(newRules);
@@ -108,7 +112,7 @@ export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
         setSaving(false);
       }
     },
-    [draftId]
+    [draftId, isEditMode]
   );
 
   // Auto-update advance rules when defaultNumTeams changes (pool config changed)
@@ -133,7 +137,8 @@ export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
         setSaving(true);
         setError(null);
 
-        const rulesRef = ref(database, `${DB_PATHS.TOURNAMENT_DRAFTS}/${draftId}/advanceRules`);
+        const basePath = isEditMode ? DB_PATHS.TOURNAMENTS : DB_PATHS.TOURNAMENT_DRAFTS;
+        const rulesRef = ref(database, `${basePath}/${draftId}/advanceRules`);
         await update(rulesRef, { formatChosen: format });
 
         setAdvanceRules(prev => ({ ...prev, formatChosen: format }));
@@ -144,7 +149,7 @@ export default function useAdvanceRules(draftId, defaultNumTeams = 8) {
         setSaving(false);
       }
     },
-    [draftId]
+    [draftId, isEditMode]
   );
 
   /**

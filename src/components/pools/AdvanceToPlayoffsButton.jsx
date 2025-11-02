@@ -43,7 +43,7 @@ export default function AdvanceToPlayoffsButton({ tournamentId, poolConfig, play
     try {
       await advanceToPlayoffs(
         tournamentId,
-        poolConfig.advancePerPool,
+        poolConfig,
         playoffConfig,
         user.uid
       );
@@ -70,6 +70,20 @@ export default function AdvanceToPlayoffsButton({ tournamentId, poolConfig, play
   }
 
   if (!allPoolsComplete) {
+    // Calculate total advancing teams
+    let totalAdvancing = 0;
+    let advancementText = '';
+
+    if (poolConfig.advancePerPoolCustom && Object.keys(poolConfig.advancePerPoolCustom).length > 0) {
+      // Custom per-pool advancement
+      totalAdvancing = Object.values(poolConfig.advancePerPoolCustom).reduce((sum, val) => sum + parseInt(val || 0), 0);
+      advancementText = 'Variable teams per pool will advance';
+    } else {
+      // Uniform advancement
+      totalAdvancing = poolConfig.advancePerPool;
+      advancementText = `Top ${poolConfig.advancePerPool} team${poolConfig.advancePerPool !== 1 ? 's' : ''} from each pool will advance`;
+    }
+
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
         <div className="flex items-start gap-3">
@@ -77,13 +91,28 @@ export default function AdvanceToPlayoffsButton({ tournamentId, poolConfig, play
           <div className="flex-1">
             <h4 className="text-sm font-semibold text-yellow-900 mb-1">Pool Play In Progress</h4>
             <p className="text-sm text-yellow-800">
-              All pool matches must be completed before advancing to playoffs.
-              Top {poolConfig.advancePerPool} team{poolConfig.advancePerPool !== 1 ? 's' : ''} from each pool will advance.
+              All pool matches must be completed before advancing to playoffs. {advancementText}.
             </p>
           </div>
         </div>
       </div>
     );
+  }
+
+  // Calculate advancement info for ready state
+  let advancementInfo = [];
+  let totalAdvancingReady = 0;
+
+  if (poolConfig.advancePerPoolCustom && Object.keys(poolConfig.advancePerPoolCustom).length > 0) {
+    // Custom per-pool advancement - show details
+    Object.entries(poolConfig.advancePerPoolCustom).forEach(([poolId, count]) => {
+      const poolName = poolId.replace('pool_', 'Pool ');
+      advancementInfo.push(`${poolName}: ${count} team${count !== 1 ? 's' : ''}`);
+    });
+    totalAdvancingReady = Object.values(poolConfig.advancePerPoolCustom).reduce((sum, val) => sum + parseInt(val || 0), 0);
+  } else {
+    // Uniform advancement
+    advancementInfo.push(`Top ${poolConfig.advancePerPool} team${poolConfig.advancePerPool !== 1 ? 's' : ''} from each pool will advance`);
   }
 
   return (
@@ -99,7 +128,9 @@ export default function AdvanceToPlayoffsButton({ tournamentId, poolConfig, play
           <div className="bg-white rounded-lg p-3 mb-3">
             <p className="text-xs font-semibold text-gray-700 mb-1">Playoff Format:</p>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Top {poolConfig.advancePerPool} team{poolConfig.advancePerPool !== 1 ? 's' : ''} from each pool will advance</li>
+              {advancementInfo.map((info, index) => (
+                <li key={index}>• {info}</li>
+              ))}
               <li>• Teams will be seeded by pool performance</li>
               <li>• Single-elimination playoff bracket will be generated</li>
             </ul>

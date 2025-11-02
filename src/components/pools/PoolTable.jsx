@@ -19,7 +19,12 @@ export default function PoolTable({ tournamentId, poolId }) {
   }
 
   // Get number of teams that advance from pool config
-  const advancePerPool = tournament?.poolConfig?.advancePerPool || 2;
+  // Check for custom per-pool advancement first, then fall back to uniform advancement
+  let advancePerPool = tournament?.poolConfig?.advancePerPool || 2;
+
+  if (tournament?.poolConfig?.advancePerPoolCustom && tournament.poolConfig.advancePerPoolCustom[poolId]) {
+    advancePerPool = tournament.poolConfig.advancePerPoolCustom[poolId];
+  }
 
   return (
     <div className="overflow-x-auto">
