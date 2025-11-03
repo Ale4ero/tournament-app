@@ -143,7 +143,7 @@ export default function ByeBracketView({ playoffMatches, playoffSeeding }) {
             const allRoundPositions = new Map(); // matchId -> centerPosition
 
             // Start with first round: calculate absolute positions
-            const firstRoundMultiplier = playInMatches.length > 0 ? 2 : 1;
+            const firstRoundMultiplier = playInMatches.length > 0 ? 2 : 3;
             const firstRoundGap = baseGap * firstRoundMultiplier;
             const firstRoundMatches = getMatchesByRound(regularMatches, rounds[0]);
             let cumulativePos = 0;
@@ -186,7 +186,13 @@ export default function ByeBracketView({ playoffMatches, playoffSeeding }) {
             }
 
             // Extract positions for the previous round matches in order
-            const prevRoundPositions = prevRoundMatches.map(m => allRoundPositions.get(m.id) || 0);
+            let prevRoundPositions = prevRoundMatches.map(m => allRoundPositions.get(m.id) || 0);
+
+            // For first round (roundIndex === 0), prevRoundPositions will be empty
+            // We need to use THIS round's positions from allRoundPositions
+            if (roundIndex === 0) {
+              prevRoundPositions = roundMatches.map(m => allRoundPositions.get(m.id) || 0);
+            }
 
             // Track calculated center positions for THIS round's matches
             const currentRoundCenterPositions = [];
