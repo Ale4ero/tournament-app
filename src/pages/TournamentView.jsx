@@ -122,8 +122,21 @@ export default function TournamentView() {
   // Check if this is a pool play tournament
   const isPoolPlayTournament = tournament?.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET;
 
-  // Check if any matches have been completed (to disable editing)
-  const hasCompletedMatches = matches.some(match => match.status === MATCH_STATUS.COMPLETED);
+  // Check if tournament has started (any score has been approved)
+  // Tournament is "in progress" if any match has LIVE or COMPLETED status, or has a winner
+  const tournamentHasStarted = matches.some(match =>
+    match.status === MATCH_STATUS.LIVE ||
+    match.status === MATCH_STATUS.COMPLETED ||
+    match.winner !== null
+  );
+
+  // Check if any playoff matches have been played (for regenerate button)
+  const playoffMatchesStarted = matches.some(match =>
+    match.matchType === 'playoff' &&
+    (match.status === MATCH_STATUS.LIVE ||
+     match.status === MATCH_STATUS.COMPLETED ||
+     match.winner !== null)
+  );
 
   return (
     <Layout>
@@ -149,15 +162,15 @@ export default function TournamentView() {
                 <>
                   <button
                     onClick={() => navigate(`/tournaments/setup/${id}?edit=true`)}
-                    disabled={hasCompletedMatches}
+                    disabled={tournamentHasStarted}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
-                    title={hasCompletedMatches ? 'Cannot edit tournament after matches have been played' : 'Edit tournament configuration'}
+                    title={tournamentHasStarted ? 'Cannot edit tournament after it has started' : 'Edit tournament configuration'}
                   >
                     Edit Config
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium cursor-pointer"
                   >
                     Delete Tournament
                   </button>
@@ -252,9 +265,9 @@ export default function TournamentView() {
                       <div className="mb-6">
                         <button
                           onClick={handleRegeneratePlayoffs}
-                          disabled={regenerating || hasCompletedMatches}
+                          disabled={regenerating || playoffMatchesStarted}
                           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
-                          title={hasCompletedMatches ? 'Cannot regenerate bracket after matches have been played' : 'Regenerate playoff bracket with updated logic'}
+                          title={playoffMatchesStarted ? 'Cannot regenerate bracket after playoff matches have started' : 'Regenerate playoff bracket with updated logic'}
                         >
                           {regenerating ? 'Regenerating...' : 'Regenerate Playoff Bracket'}
                         </button>

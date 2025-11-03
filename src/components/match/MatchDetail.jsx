@@ -238,12 +238,17 @@ export default function MatchDetail({ match, tournament }) {
             <div>
               <h3 className="text-xl font-bold mb-2">Interactive Scoreboard</h3>
               <p className="text-green-50 text-sm">
-                Launch the live scoreboard to track points in real-time during the match
+                {!match.team1 || !match.team2
+                  ? 'Scoreboard will be available once both teams are determined'
+                  : 'Launch the live scoreboard to track points in real-time during the match'
+                }
               </p>
             </div>
             <button
               onClick={() => navigate(`/match/${match.id}/scoreboard`)}
-              className="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-lg transition-colors shadow-lg flex items-center gap-2 whitespace-nowrap"
+              disabled={!match.team1 || !match.team2}
+              className="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-lg transition-colors shadow-lg flex items-center gap-2 whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+              title={!match.team1 || !match.team2 ? 'Both teams must be determined before refereeing' : 'Launch interactive scoreboard'}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
