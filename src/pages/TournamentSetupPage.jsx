@@ -64,14 +64,31 @@ export default function TournamentSetupPage() {
 
     const totalTeams = draft.teams.length;
     const numPools = poolConfig.numPools;
-    const baseSize = Math.floor(totalTeams / numPools);
-    const remainder = totalTeams % numPools;
 
-    // First 'remainder' pools get an extra team
-    const sizes = [];
-    for (let i = 0; i < numPools; i++) {
-      sizes.push(i < remainder ? baseSize + 1 : baseSize);
+    // Simulate snake seeding to get accurate pool sizes
+    const sizes = Array(numPools).fill(0);
+    let currentPool = 0;
+    let direction = 1; // 1 for forward, -1 for backward
+
+    for (let i = 0; i < totalTeams; i++) {
+      sizes[currentPool]++;
+
+      // Move to next pool following snake pattern
+      if (direction === 1) {
+        if (currentPool === numPools - 1) {
+          direction = -1;
+        } else {
+          currentPool++;
+        }
+      } else {
+        if (currentPool === 0) {
+          direction = 1;
+        } else {
+          currentPool--;
+        }
+      }
     }
+
     return sizes;
   }, [isPoolPlayTournament, draft, poolConfig.numPools]);
 

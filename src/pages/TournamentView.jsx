@@ -10,6 +10,7 @@ import AdvanceToPlayoffsButton from '../components/pools/AdvanceToPlayoffsButton
 import { formatDate } from '../utils/tournamentStatus';
 import { TOURNAMENT_STATUS, TOURNAMENT_TYPE, MATCH_STATUS } from '../utils/constants';
 import { deleteTournament } from '../services/tournament.service';
+import { regeneratePlayoffBracket } from '../services/bracket.service';
 
 // Helper function to format tournament type display names
 const formatTournamentType = (type) => {
@@ -29,6 +30,7 @@ export default function TournamentView() {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   // Get tab from URL or default to 'pools'
   const tabFromUrl = searchParams.get('tab') || 'pools';
@@ -51,6 +53,25 @@ export default function TournamentView() {
       alert('Failed to delete tournament: ' + error.message);
       setDeleting(false);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleRegeneratePlayoffs = async () => {
+    if (!window.confirm(
+      'Are you sure you want to regenerate the playoff bracket? This will delete all playoff matches and recreate them. Pool play matches will NOT be affected.'
+    )) {
+      return;
+    }
+
+    try {
+      setRegenerating(true);
+      await regeneratePlayoffBracket(id);
+      window.location.reload();
+    } catch (error) {
+      console.error('Error regenerating playoffs:', error);
+      alert('Failed to regenerate playoffs: ' + error.message);
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -225,7 +246,25 @@ export default function TournamentView() {
               <div>
                 {tournament.status === TOURNAMENT_STATUS.PLAYOFFS ||
                 tournament.status === TOURNAMENT_STATUS.COMPLETED ? (
-                  <BracketView tournamentId={tournament.id} />
+                  <>
+                    {/* Regenerate Playoffs Button (Admin Only) */}
+                    {isAdmin && tournament.playoffs && (
+                      <div className="mb-6">
+                        <button
+                          onClick={handleRegeneratePlayoffs}
+                          disabled={regenerating || hasCompletedMatches}
+                          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+                          title={hasCompletedMatches ? 'Cannot regenerate bracket after matches have been played' : 'Regenerate playoff bracket with updated logic'}
+                        >
+                          {regenerating ? 'Regenerating...' : 'Regenerate Playoff Bracket'}
+                        </button>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Regenerates the playoff bracket structure. Pool play matches are not affected.
+                        </p>
+                      </div>
+                    )}
+                    <BracketView tournamentId={tournament.id} />
+                  </>
                 ) : (
                   <div className="bg-gray-50 rounded-lg p-12 text-center">
                     <div className="text-6xl mb-4">🔒</div>

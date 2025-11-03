@@ -260,7 +260,9 @@ function generateByesBracket({ tournamentId, seeds, byes, higher, rules }) {
   // Round 2: bye seeds + winners from Round 1
   const round2Key = getRoundKey(numRounds - 1, numRounds);
   const round2Matches = [];
-  const matchesInRound2 = higher / 2;
+  // Calculate matches in round 2: number of round 1 winners + bye seeds, divided by 2
+  const teamsInRound2 = round1Pairs.length + byes; // winners from round 1 + teams with byes
+  const matchesInRound2 = teamsInRound2 / 2;
 
   for (let idx = 0; idx < matchesInRound2; idx++) {
     const match = createMatchObject({
@@ -304,8 +306,8 @@ function generateByesBracket({ tournamentId, seeds, byes, higher, rules }) {
     rounds[roundKey] = { matchIds: roundMatches.map(m => m.id) };
   }
 
-  // Link matches
-  linkMatchesToNextRound(allMatches, numRounds);
+  // Custom linking for bye bracket
+  linkByeBracketMatches(allMatches, numRounds, byes, round1Matches, round2Matches);
 
   return { rounds, matches: allMatches };
 }
@@ -448,6 +450,47 @@ function createMatchObject({ tournamentId, roundNum, roundKey, matchIndex, team1
     rules: rules || {},
     setScores: [],
   };
+}
+
+/**
+ * Links matches for bye bracket (custom logic to handle byes correctly)
+ * @param {Array} allMatches - All matches
+ * @param {number} numRounds - Number of rounds
+ * @param {number} byes - Number of byes
+ * @param {Array} round1Matches - Round 1 matches
+ * @param {Array} round2Matches - Round 2 matches
+ */
+function linkByeBracketMatches(allMatches, numRounds, byes, round1Matches, round2Matches) {
+  // Link Round 1 matches to Round 2
+  // Each Round 1 match winner should go to a specific Round 2 match
+  // Round 2 has: [bye team vs R1 winner], [bye team vs R1 winner], ..., [R1 winner vs R1 winner]
+
+  console.log('[linkByeBracketMatches] byes:', byes);
+  console.log('[linkByeBracketMatches] Round 1 matches:', round1Matches.length);
+  console.log('[linkByeBracketMatches] Round 2 matches:', round2Matches.length);
+
+  round1Matches.forEach((r1Match, idx) => {
+    // Determine which Round 2 match this winner goes to
+    // First 'byes' number of Round 2 matches have a bye team waiting
+    // Remaining Round 2 matches are between two Round 1 winners
+
+    if (idx < byes) {
+      // This Round 1 winner goes to face a bye team
+      r1Match.nextMatchId = round2Matches[idx].id;
+      r1Match.isTeam1Winner = false; // Goes to team2 slot (bye team is in team1)
+      console.log(`[linkByeBracketMatches] R1 Match ${r1Match.matchNumber} → R2 Match ${round2Matches[idx].matchNumber} (team2, vs bye)`);
+    } else {
+      // This Round 1 winner pairs with another Round 1 winner
+      const r2MatchIndex = byes + Math.floor((idx - byes) / 2);
+      r1Match.nextMatchId = round2Matches[r2MatchIndex].id;
+      r1Match.isTeam1Winner = (idx - byes) % 2 === 0;
+      console.log(`[linkByeBracketMatches] R1 Match ${r1Match.matchNumber} → R2 Match ${round2Matches[r2MatchIndex].matchNumber} (${r1Match.isTeam1Winner ? 'team1' : 'team2'})`);
+    }
+  });
+
+  // Link Round 2 and beyond using standard logic
+  const round2AndBeyond = allMatches.filter(m => m.round < numRounds);
+  linkMatchesToNextRound(round2AndBeyond, numRounds - 1);
 }
 
 /**

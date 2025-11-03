@@ -136,6 +136,69 @@ export async function generateStandardBracket({ tournamentId, seeds, rules }) {
 }
 
 /**
+ * Regenerates playoff bracket for an existing tournament
+ * Deletes all playoff matches and recreates them with current rules
+ * @param {string} tournamentId - Tournament ID
+ * @returns {Promise<void>}
+ */
+export async function regeneratePlayoffBracket(tournamentId) {
+  try {
+    // Get tournament data
+    const tournamentRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`);
+    const snapshot = await get(tournamentRef);
+
+    if (!snapshot.exists()) {
+      throw new Error('Tournament not found');
+    }
+
+    const tournament = snapshot.val();
+
+    // Get playoff seeding data
+    if (!tournament.playoffs || !tournament.playoffs.seeds) {
+      throw new Error('No playoff seeding data found');
+    }
+
+    const { seeds, format, math } = tournament.playoffs;
+    const rules = tournament.playoffConfig?.matchRules || tournament.matchRules || {};
+
+    console.log('[regeneratePlayoffBracket] Regenerating with:', { seeds: seeds.length, format, math, rules });
+
+    // Delete all existing playoff matches
+    const matchesRef = ref(database, `${DB_PATHS.MATCHES}/${tournamentId}`);
+    const matchesSnapshot = await get(matchesRef);
+    console.log('[regeneratePlayoffBracket] Got matches snapshot');
+
+    if (matchesSnapshot.exists()) {
+      const updates = {};
+      matchesSnapshot.forEach((child) => {
+        const match = child.val();
+        // Only delete playoff matches (not pool play matches)
+        if (!match.poolId) {
+          updates[child.key] = null;
+        }
+      });
+      await update(matchesRef, updates);
+      console.log('[regeneratePlayoffBracket] Deleted existing playoff matches');
+    }
+
+    // Generate new bracket
+    console.log('[regeneratePlayoffBracket] Calling generateAndSavePlayoffs...');
+    const result = await generateAndSavePlayoffs({
+      tournamentId,
+      seeds,
+      format,
+      math,
+      rules,
+    });
+
+    console.log('[regeneratePlayoffBracket] Playoff bracket regenerated successfully', result);
+  } catch (error) {
+    console.error('Error regenerating playoff bracket:', error);
+    throw error;
+  }
+}
+
+/**
  * Re-exports for convenience
  */
 export { pairSeedsForRound };
