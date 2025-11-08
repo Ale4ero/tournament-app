@@ -4,6 +4,7 @@ import { DB_PATHS, MATCH_STATUS, SUBMISSION_STATUS, MATCH_TYPE } from '../utils/
 import { determineWinner, advanceWinner } from '../utils/bracketGenerator';
 import { updateTournament, getTournamentById } from './tournament.service';
 import { updatePoolStandings } from './pool.service';
+import { updatePlayerStats } from './kob.service';
 
 /**
  * Update tournament status based on match completion
@@ -108,17 +109,23 @@ export async function getMatch(matchId) {
     // matchId formats:
     // - Playoff: tournamentId_rX_mY
     // - Pool: tournamentId_poolId_mX (e.g., tournament123_pool_A_m1)
+    // - KOB: tournamentId_roundId_pool_X_mY
     // Extract tournament ID (everything before the first underscore followed by 'r' or 'pool')
     let tournamentId;
 
-    if (matchId.includes('_r')) {
+    if (matchId.includes('_r') && !matchId.includes('_pool')) {
       // Playoff match: split on _r
       tournamentId = matchId.split('_r')[0];
       console.log('Detected playoff match, tournamentId:', tournamentId);
     } else if (matchId.includes('_pool')) {
-      // Pool match: split on _pool
+      // Pool or KOB match: split on _pool and take everything before
       tournamentId = matchId.split('_pool')[0];
-      console.log('Detected pool match, tournamentId:', tournamentId);
+      // Handle KOB format where roundId might be before _pool
+      const parts = tournamentId.split('_');
+      if (parts.length > 1) {
+        tournamentId = parts[0]; // First part is always tournament ID
+      }
+      console.log('Detected pool/KOB match, tournamentId:', tournamentId);
     } else {
       // Fallback: try to extract from path parts
       const parts = matchId.split('_');
@@ -303,8 +310,29 @@ export async function approveScore(matchId, submissionId, adminUid) {
       }
     }
 
+    // Check if this is a KOB match - update player stats
+    if (match.matchType === 'kob' && match.roundId && match.poolId) {
+      console.log('KOB match detected - updating player stats');
+      try {
+        await updatePlayerStats(
+          tournamentId,
+          match.roundId,
+          match.poolId,
+          {
+            playerIds: match.playerIds,
+            team1: { players: match.team1.players, score: score1 },
+            team2: { players: match.team2.players, score: score2 },
+            winner,
+          }
+        );
+        console.log('KOB player stats updated successfully');
+      } catch (kobError) {
+        console.error('Error updating KOB player stats:', kobError);
+        // Don't fail the entire approval if stats update fails
+      }
+    }
     // Check if this is a pool match - if so, update pool standings
-    if (match.matchType === MATCH_TYPE.POOL && match.poolId) {
+    else if (match.matchType === MATCH_TYPE.POOL && match.poolId) {
       console.log('Pool match detected - updating pool standings for pool:', match.poolId);
       try {
         // Get tournament to access pool configuration

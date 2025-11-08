@@ -17,6 +17,7 @@ export default function TournamentForm({ onSuccess }) {
     startDate: '',
     endDate: '',
     teams: '',
+    players: '', // For KOB tournaments
   });
 
   const handleChange = (e) => {
@@ -30,27 +31,36 @@ export default function TournamentForm({ onSuccess }) {
     setLoading(true);
 
     try {
-      // Parse teams
-      const teams = formData.teams
+      const isKOB = formData.type === TOURNAMENT_TYPE.KING_OF_THE_BEACH;
+
+      // Parse teams or players based on tournament type
+      const participants = (isKOB ? formData.players : formData.teams)
         .split('\n')
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
 
-      if (teams.length < 2) {
-        setError('Please enter at least 2 teams (one per line)');
+      const minParticipants = isKOB ? 4 : 2;
+      const participantType = isKOB ? 'players' : 'teams';
+
+      if (participants.length < minParticipants) {
+        setError(`Please enter at least ${minParticipants} ${participantType} (one per line)`);
         setLoading(false);
         return;
       }
-
-      // No longer require power of 2 - flexible playoff advancement handles any team count
 
       const draftData = {
         name: formData.name,
         description: formData.description,
         type: formData.type,
         startDate: formData.startDate ? new Date(formData.startDate).getTime() : Date.now(),
-        teams,
       };
+
+      // For KOB, use 'players' field; for others, use 'teams'
+      if (isKOB) {
+        draftData.players = participants;
+      } else {
+        draftData.teams = participants;
+      }
 
       // Only include endDate if it's provided
       if (formData.endDate) {
@@ -59,7 +69,13 @@ export default function TournamentForm({ onSuccess }) {
 
       // Create draft and redirect to setup page
       const draftId = await createTournamentDraft(draftData, user.uid, organizationId);
-      navigate(`/tournaments/setup/${draftId}`);
+
+      // For KOB, redirect to KOB setup; otherwise use regular setup
+      if (isKOB) {
+        navigate(`/tournaments/kob-setup/${draftId}`);
+      } else {
+        navigate(`/tournaments/setup/${draftId}`);
+      }
     } catch (err) {
       setError(err.message || 'Failed to create tournament draft');
       console.error('Create tournament draft error:', err);
@@ -121,6 +137,7 @@ export default function TournamentForm({ onSuccess }) {
           >
             <option value={TOURNAMENT_TYPE.SINGLE_ELIMINATION}>Single Elimination</option>
             <option value={TOURNAMENT_TYPE.POOL_PLAY_BRACKET}>Pool Play + Single Elimination</option>
+            <option value={TOURNAMENT_TYPE.KING_OF_THE_BEACH}>King of the Beach</option>
           </select>
         </div>
       </div>
@@ -155,26 +172,47 @@ export default function TournamentForm({ onSuccess }) {
         </div>
       </div>
 
-      <div>
-        <label htmlFor="teams" className="block text-sm font-medium text-gray-700 mb-2">
-          Teams (one per line) *
-        </label>
-        <textarea
-          id="teams"
-          name="teams"
-          value={formData.teams}
-          onChange={handleChange}
-          rows={8}
-          required
-          className="input-field font-mono text-sm placeholder:text-gray-400"
-          placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;Team Delta&#10;..."
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          {formData.type === TOURNAMENT_TYPE.SINGLE_ELIMINATION
-            ? 'Any number of teams (system will handle byes or play-ins automatically)'
-            : 'Any number of teams (will be distributed across pools)'}
-        </p>
-      </div>
+      {formData.type === TOURNAMENT_TYPE.KING_OF_THE_BEACH ? (
+        <div>
+          <label htmlFor="players" className="block text-sm font-medium text-gray-700 mb-2">
+            Players (one per line) *
+          </label>
+          <textarea
+            id="players"
+            name="players"
+            value={formData.players}
+            onChange={handleChange}
+            rows={8}
+            required
+            className="input-field font-mono text-sm placeholder:text-gray-400"
+            placeholder="John Smith&#10;Jane Doe&#10;Mike Johnson&#10;Sarah Williams&#10;..."
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Minimum 4 players required. Players will rotate partners throughout the tournament.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <label htmlFor="teams" className="block text-sm font-medium text-gray-700 mb-2">
+            Teams (one per line) *
+          </label>
+          <textarea
+            id="teams"
+            name="teams"
+            value={formData.teams}
+            onChange={handleChange}
+            rows={8}
+            required
+            className="input-field font-mono text-sm placeholder:text-gray-400"
+            placeholder="Team Alpha&#10;Team Bravo&#10;Team Charlie&#10;Team Delta&#10;..."
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            {formData.type === TOURNAMENT_TYPE.SINGLE_ELIMINATION
+              ? 'Any number of teams (system will handle byes or play-ins automatically)'
+              : 'Any number of teams (will be distributed across pools)'}
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <button
@@ -184,6 +222,8 @@ export default function TournamentForm({ onSuccess }) {
         >
           {loading
             ? 'Saving...'
+            : formData.type === TOURNAMENT_TYPE.KING_OF_THE_BEACH
+            ? 'Configure KOB'
             : formData.type === TOURNAMENT_TYPE.POOL_PLAY_BRACKET
             ? 'Configure Pools'
             : 'Manage Bracket'}

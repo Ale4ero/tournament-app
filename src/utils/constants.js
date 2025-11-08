@@ -25,6 +25,7 @@ export const SUBMISSION_STATUS = {
 export const TOURNAMENT_TYPE = {
   SINGLE_ELIMINATION: 'single_elimination',
   POOL_PLAY_BRACKET: 'pool_play_bracket',
+  KING_OF_THE_BEACH: 'kob',
 };
 
 // Seeding types
@@ -74,6 +75,17 @@ export const DEFAULT_POOL_CONFIG = {
     winBy: 2,
     cap: 25,
     numSets: 2, // Number of sets per match (records based on sets won/lost, not matches)
+  },
+};
+
+// Default KOB configuration
+export const DEFAULT_KOB_CONFIG = {
+  poolSize: 4, // 4-6 players per pool
+  advancePerPool: 2,
+  matchRules: {
+    firstTo: 21,
+    winBy: 2,
+    cap: 25,
   },
 };
 

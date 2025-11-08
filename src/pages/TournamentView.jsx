@@ -32,6 +32,13 @@ export default function TournamentView() {
   const [deleting, setDeleting] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
+  // Redirect KOB tournaments to dedicated view
+  useEffect(() => {
+    if (tournament && tournament.type === 'kob') {
+      navigate(`/tournaments/${id}`, { replace: true });
+    }
+  }, [tournament, id, navigate]);
+
   // Get tab from URL or default to 'pools'
   const tabFromUrl = searchParams.get('tab') || 'pools';
   const [activeTab, setActiveTab] = useState(tabFromUrl);

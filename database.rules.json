@@ -13,21 +13,7 @@
       ".read": true,
       "$tournamentId": {
         ".read": true,
-        ".write": "auth != null &&
-          root.child('users').child(auth.uid).child('role').val() === 'admin' &&
-          root.child('users').child(auth.uid).child('organizationId').val() != null &&
-          (
-            (!data.exists() && root.child('organizations').child(root.child('users').child(auth.uid).child('organizationId').val()).child('admins').child(auth.uid).exists()) ||
-            (data.exists() && root.child('users').child(auth.uid).child('organizationId').val() === data.child('organizationId').val())
-          )",
-        "advanceRules": {
-          ".read": true,
-          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
-        },
-        "playoffs": {
-          ".read": true,
-          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
-        }
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     },
     "tournamentDrafts": {
