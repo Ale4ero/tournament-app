@@ -9,7 +9,7 @@ import AdminScoreSubmissionForm from './AdminScoreSubmissionForm';
 import EditScoreForm from './EditScoreForm';
 import EditMatchRulesForm from './EditMatchRulesForm';
 
-export default function MatchDetail({ match, tournament }) {
+export default function MatchDetail({ match, tournament, players = {} }) {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
@@ -22,6 +22,36 @@ export default function MatchDetail({ match, tournament }) {
       </div>
     );
   }
+
+  // Check if this is a KOB match (team1/team2 are objects with players array)
+  const isKOBMatch = match.team1 && typeof match.team1 === 'object' && match.team1.players;
+
+  // Get team display names
+  const getTeamName = (team) => {
+    if (!team) return 'TBD';
+    if (typeof team === 'string') return team;
+    if (team.players && Array.isArray(team.players)) {
+      // KOB match - format: "Player1 + Player2"
+      const playerNames = team.players.map(playerId => {
+        return players?.[playerId]?.name || playerId;
+      });
+      return playerNames.join(' + ');
+    }
+    return 'TBD';
+  };
+
+  // Get team scores
+  const getTeamScore = (team, fallbackScore) => {
+    if (typeof team === 'object' && team.score !== undefined) {
+      return team.score;
+    }
+    return fallbackScore;
+  };
+
+  const team1Name = getTeamName(match.team1);
+  const team2Name = getTeamName(match.team2);
+  const score1 = getTeamScore(match.team1, match.score1);
+  const score2 = getTeamScore(match.team2, match.score2);
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -69,32 +99,32 @@ export default function MatchDetail({ match, tournament }) {
         <div className="grid grid-cols-2 gap-8 mt-6">
           <div className="text-center">
             <h2 className="text-lg font-semibold text-gray-700 mb-2">
-              {match.team1 || 'TBD'}
+              {team1Name}
             </h2>
             <div
               className={`text-6xl font-bold ${
-                match.winner === match.team1 ? 'text-green-600' : 'text-gray-400'
+                match.winner === 'team1' ? 'text-green-600' : 'text-gray-400'
               }`}
             >
-              {match.score1 !== null ? match.score1 : '-'}
+              {score1 !== null && score1 !== undefined ? score1 : '-'}
             </div>
-            {match.winner === match.team1 && (
+            {match.winner === 'team1' && (
               <div className="mt-2 text-green-600 font-semibold">Winner 🏆</div>
             )}
           </div>
 
           <div className="text-center">
             <h2 className="text-lg font-semibold text-gray-700 mb-2">
-              {match.team2 || 'TBD'}
+              {team2Name}
             </h2>
             <div
               className={`text-6xl font-bold ${
-                match.winner === match.team2 ? 'text-green-600' : 'text-gray-400'
+                match.winner === 'team2' ? 'text-green-600' : 'text-gray-400'
               }`}
             >
-              {match.score2 !== null ? match.score2 : '-'}
+              {score2 !== null && score2 !== undefined ? score2 : '-'}
             </div>
-            {match.winner === match.team2 && (
+            {match.winner === 'team2' && (
               <div className="mt-2 text-green-600 font-semibold">Winner 🏆</div>
             )}
           </div>
@@ -112,11 +142,11 @@ export default function MatchDetail({ match, tournament }) {
                     <span className="text-sm text-gray-600 ml-2">({set.winner} wins)</span>
                   </div>
                   <div className="text-lg font-bold space-x-2">
-                    <span className={set.winner === match.team1 ? 'text-green-600' : 'text-gray-600'}>
+                    <span className={set.winner === 'team1' ? 'text-green-600' : 'text-gray-600'}>
                       {set.score1}
                     </span>
                     <span className="text-gray-400">-</span>
-                    <span className={set.winner === match.team2 ? 'text-green-600' : 'text-gray-600'}>
+                    <span className={set.winner === 'team2' ? 'text-green-600' : 'text-gray-600'}>
                       {set.score2}
                     </span>
                   </div>
@@ -238,7 +268,7 @@ export default function MatchDetail({ match, tournament }) {
             <div>
               <h3 className="text-xl font-bold mb-2">Interactive Scoreboard</h3>
               <p className="text-green-50 text-sm">
-                {!match.team1 || !match.team2
+                {team1Name === 'TBD' || team2Name === 'TBD'
                   ? 'Scoreboard will be available once both teams are determined'
                   : 'Launch the live scoreboard to track points in real-time during the match'
                 }
@@ -246,9 +276,9 @@ export default function MatchDetail({ match, tournament }) {
             </div>
             <button
               onClick={() => navigate(`/match/${match.id}/scoreboard`)}
-              disabled={!match.team1 || !match.team2}
+              disabled={team1Name === 'TBD' || team2Name === 'TBD'}
               className="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-lg transition-colors shadow-lg flex items-center gap-2 whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
-              title={!match.team1 || !match.team2 ? 'Both teams must be determined before refereeing' : 'Launch interactive scoreboard'}
+              title={team1Name === 'TBD' || team2Name === 'TBD' ? 'Both teams must be determined before refereeing' : 'Launch interactive scoreboard'}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path

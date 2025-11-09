@@ -6,9 +6,10 @@ import { DB_PATHS, SCOREBOARD_STATUS, TEAM_COLORS, DEFAULT_MATCH_RULES } from '.
  * Create a new scoreboard for a match
  * @param {Object} match - Match object
  * @param {string} userId - User ID starting the scoreboard
+ * @param {Object} players - Players object (for KOB matches)
  * @returns {Promise<string>} Scoreboard ID
  */
-export async function createScoreboard(match, userId) {
+export async function createScoreboard(match, userId, players = {}) {
   try {
     const scoreboardId = match.id;
     const scoreboardRef = ref(database, `${DB_PATHS.SCOREBOARDS}/${scoreboardId}`);
@@ -23,7 +24,30 @@ export async function createScoreboard(match, userId) {
       }
     }
 
-    const rules = match.rules || DEFAULT_MATCH_RULES;
+    // Get match rules with proper defaults
+    let rules = match.rules || DEFAULT_MATCH_RULES;
+
+    // For KOB matches, always use bestOf: 1 (override any other value)
+    if (match.matchType === 'kob') {
+      rules = { ...rules, bestOf: 1 };
+    }
+
+    // Get team names - handle both string format and KOB object format
+    const getTeamName = (team) => {
+      if (!team) return 'TBD';
+      if (typeof team === 'string') return team;
+      if (team.players && Array.isArray(team.players)) {
+        // KOB match - format: "Player1 + Player2"
+        const playerNames = team.players.map(playerId => {
+          return players?.[playerId]?.name || playerId;
+        });
+        return playerNames.join(' + ');
+      }
+      return 'Team';
+    };
+
+    const team1Name = getTeamName(match.team1);
+    const team2Name = getTeamName(match.team2);
 
     // Initialize first set
     const initialSet = {
@@ -36,8 +60,8 @@ export async function createScoreboard(match, userId) {
     const scoreboard = {
       matchId: match.id,
       tournamentId: match.tournamentId,
-      team1: match.team1 || 'Team 1',
-      team2: match.team2 || 'Team 2',
+      team1: team1Name,
+      team2: team2Name,
       team1Color: TEAM_COLORS.RED,
       team2Color: TEAM_COLORS.BLUE,
       currentSet: 1,

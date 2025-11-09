@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getMatchesByTournament } from '../services/match.service';
 import { DB_PATHS } from '../utils/constants';
 import Leaderboard from '../components/kob/Leaderboard';
-import PoolView from '../components/kob/PoolView';
+import KOBPoolList from '../components/kob/KOBPoolList';
 import RoundManagement from '../components/kob/RoundManagement';
 
 /**
@@ -24,7 +24,6 @@ export default function KOBTournamentView() {
   const [pools, setPools] = useState({}); // Separate state for pools
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPoolId, setSelectedPoolId] = useState(null);
 
   // All useEffect calls at the top level
   useEffect(() => {
@@ -84,23 +83,6 @@ export default function KOBTournamentView() {
     };
   }, [tournamentId]);
 
-  // Auto-select first pool when pools load - moved before early returns
-  useEffect(() => {
-    if (!loading && rounds && Object.keys(rounds).length > 0 && pools && Object.keys(pools).length > 0) {
-      const roundsList = Object.values(rounds).sort((a, b) => b.roundNumber - a.roundNumber);
-      const currentRound = roundsList.find(r => r.status !== 'completed') || roundsList[0];
-
-      if (currentRound && currentRound.poolIds && currentRound.poolIds.length > 0) {
-        const currentPools = currentRound.poolIds
-          .map(poolId => pools[poolId])
-          .filter(Boolean);
-
-        if (!selectedPoolId && currentPools.length > 0) {
-          setSelectedPoolId(currentPools[0].id);
-        }
-      }
-    }
-  }, [rounds, pools, selectedPoolId, loading]);
 
   const handleRoundAdvanced = () => {
     // Refresh matches after round advancement
@@ -136,11 +118,6 @@ export default function KOBTournamentView() {
   const roundsList = Object.values(rounds).sort((a, b) => b.roundNumber - a.roundNumber);
   const currentRound = roundsList.find(r => r.status !== 'completed') || roundsList[0];
 
-  // Debug logging
-  console.log('Rounds data:', rounds);
-  console.log('Pools data:', pools);
-  console.log('Current round:', currentRound);
-
   // Calculate overall standings
   const overallStandings = Object.fromEntries(
     Object.entries(players).map(([playerId, player]) => [
@@ -160,10 +137,6 @@ export default function KOBTournamentView() {
         .map(poolId => pools[poolId])
         .filter(Boolean)
     : [];
-
-  console.log('Current pools:', currentPools);
-
-  const selectedPool = currentPools.find(p => p.id === selectedPoolId);
 
   const isCompleted = tournament.status === 'completed';
   const isFinal = currentRound && currentRound.roundNumber > 1 && Object.keys(players).filter(k => !players[k].eliminated).length <= 4;
@@ -236,73 +209,15 @@ export default function KOBTournamentView() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - 2 columns */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Round Navigation */}
-            {roundsList.length > 1 && (
-              <div className="card">
-                <h3 className="text-lg font-semibold mb-3">Rounds</h3>
-                <div className="flex flex-wrap gap-2">
-                  {roundsList.map((round) => (
-                    <button
-                      key={round.id}
-                      onClick={() => {
-                        const roundPools = round.poolIds.map(poolId => rounds[round.id]?.pools?.[poolId]).filter(Boolean);
-                        if (roundPools.length > 0) {
-                          setSelectedPoolId(roundPools[0].id);
-                        }
-                      }}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        currentRound?.id === round.id
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Round {round.roundNumber}
-                      {round.status === 'completed' && ' ✓'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Pool Navigation (if multiple pools) */}
-            {currentPools.length > 1 && (
-              <div className="card">
-                <h3 className="text-lg font-semibold mb-3">Pools</h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentPools.map((pool) => (
-                    <button
-                      key={pool.id}
-                      onClick={() => setSelectedPoolId(pool.id)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        selectedPoolId === pool.id
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {pool.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Selected Pool View */}
-            {selectedPool && currentRound && (
-              <PoolView
-                tournamentId={tournamentId}
-                roundId={currentRound.id}
-                pool={selectedPool}
+            {/* Pools Display */}
+            {currentRound && (
+              <KOBPoolList
+                pools={currentPools}
                 players={players}
                 matches={matches}
+                tournamentId={tournamentId}
+                roundId={currentRound.id}
               />
-            )}
-
-            {!selectedPool && currentPools.length === 0 && (
-              <div className="card">
-                <p className="text-gray-500 text-center py-8">
-                  No pools available for this round
-                </p>
-              </div>
             )}
           </div>
 

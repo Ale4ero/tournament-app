@@ -3,32 +3,49 @@ import { useState, useEffect } from 'react';
 import { getMatchById } from '../services/match.service';
 import { getTournamentById } from '../services/tournament.service';
 import { subscribeMatch } from '../services/match.service';
+import { subscribePlayers } from '../services/kob.service';
 import Layout from '../components/layout/Layout';
 import MatchDetail from '../components/match/MatchDetail';
 
 export default function MatchPage() {
-  const { matchId } = useParams();
+  const params = useParams();
+  const matchId = params.matchId;
+  const urlTournamentId = params.tournamentId || null; // Ensure it's always defined
   const [searchParams] = useSearchParams();
   const [match, setMatch] = useState(null);
   const [tournament, setTournament] = useState(null);
+  const [players, setPlayers] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadMatch = async () => {
       try {
-        // Extract tournament ID from match ID
-        // Formats: tournamentId_r1_m1 (playoff) or tournamentId_pool_A_m1 (pool)
-        let tournamentId;
+        // Use tournament ID from URL if available, otherwise extract from match ID
+        let tournamentId = urlTournamentId;
 
-        if (matchId.includes('_r')) {
-          // Playoff match: split on _r
-          tournamentId = matchId.split('_r')[0];
-        } else if (matchId.includes('_pool')) {
-          // Pool match: split on _pool
-          tournamentId = matchId.split('_pool')[0];
-        } else {
-          // Fallback
-          tournamentId = matchId.split('_')[0];
+        if (!tournamentId) {
+          // Extract tournament ID from match ID
+          // Formats:
+          // - tournamentId_r1_m1 (playoff)
+          // - tournamentId_pool_A_m1 (pool play)
+          // - tournamentId_poolId_m1 (KOB)
+          if (matchId.includes('_r')) {
+            // Playoff match: split on _r
+            tournamentId = matchId.split('_r')[0];
+          } else if (matchId.includes('_pool')) {
+            // Pool match: split on _pool
+            tournamentId = matchId.split('_pool')[0];
+          } else if (matchId.includes('_m')) {
+            // KOB match: format is tournamentId_poolId_m1
+            // Get everything before the last _m
+            const parts = matchId.split('_m');
+            const beforeMatch = parts[0]; // e.g., "tournamentId_poolId"
+            // Get first part as tournament ID
+            tournamentId = beforeMatch.split('_')[0];
+          } else {
+            // Fallback
+            tournamentId = matchId.split('_')[0];
+          }
         }
 
         const matchData = await getMatchById(tournamentId, matchId);
@@ -43,7 +60,16 @@ export default function MatchPage() {
             setMatch(updatedMatch);
           });
 
-          return unsubscribe;
+          // If KOB tournament, subscribe to players
+          let unsubscribePlayers;
+          if (tournamentData?.type === 'kob') {
+            unsubscribePlayers = subscribePlayers(matchData.tournamentId, setPlayers);
+          }
+
+          return () => {
+            if (unsubscribe) unsubscribe();
+            if (unsubscribePlayers) unsubscribePlayers();
+          };
         }
       } catch (error) {
         console.error('Error loading match:', error);
@@ -58,7 +84,7 @@ export default function MatchPage() {
         unsubscribe.then((unsub) => unsub && unsub());
       }
     };
-  }, [matchId]);
+  }, [matchId, urlTournamentId]);
 
   if (loading) {
     return (
@@ -73,6 +99,11 @@ export default function MatchPage() {
   // Determine which tab to link to based on match type
   const getBackLink = () => {
     if (!tournament) return '/';
+
+    // KOB tournaments have their own view
+    if (tournament.type === 'kob') {
+      return `/tournaments/${tournament.id}`;
+    }
 
     // If it's a pool match, go to pools tab; otherwise go to playoffs tab
     const tab = match?.matchType === 'pool' ? 'pools' : 'playoffs';
@@ -96,7 +127,7 @@ export default function MatchPage() {
           ← Back to {tournament ? 'Bracket' : 'Tournaments'}
         </Link>
 
-        <MatchDetail match={match} tournament={tournament} />
+        <MatchDetail match={match} tournament={tournament} players={players} />
       </div>
     </Layout>
   );

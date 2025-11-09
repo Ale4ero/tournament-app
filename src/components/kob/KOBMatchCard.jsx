@@ -13,6 +13,10 @@ export default function KOBMatchCard({ match, players, tournamentId }) {
   const isCompleted = match.status === 'completed';
   const isLive = match.status === 'live';
 
+  // Get scores - handle both team object format and direct score properties
+  const team1Score = match.team1?.score ?? match.score1 ?? null;
+  const team2Score = match.team2?.score ?? match.score2 ?? null;
+
   return (
     <Link
       to={`/tournaments/${tournamentId}/matches/${match.id}`}
@@ -73,13 +77,13 @@ export default function KOBMatchCard({ match, players, tournamentId }) {
               </div>
             </div>
             <div>
-              {match.team1.score !== null && (
+              {isCompleted && team1Score !== null && (
                 <span
                   className={`text-lg font-bold ${
                     match.winner === 'team1' ? 'text-green-700' : 'text-gray-700'
                   }`}
                 >
-                  {match.team1.score}
+                  {team1Score}
                 </span>
               )}
             </div>
@@ -105,13 +109,13 @@ export default function KOBMatchCard({ match, players, tournamentId }) {
               </div>
             </div>
             <div>
-              {match.team2.score !== null && (
+              {isCompleted && team2Score !== null && (
                 <span
                   className={`text-lg font-bold ${
                     match.winner === 'team2' ? 'text-green-700' : 'text-gray-700'
                   }`}
                 >
-                  {match.team2.score}
+                  {team2Score}
                 </span>
               )}
             </div>

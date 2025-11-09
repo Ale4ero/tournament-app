@@ -104,42 +104,47 @@ export async function getMatchById(tournamentId, matchId) {
  */
 export async function getMatch(matchId) {
   try {
-    console.log('getMatch called with matchId:', matchId);
+    console.log('[getMatch] Called with matchId:', matchId);
 
     // matchId formats:
     // - Playoff: tournamentId_rX_mY
-    // - Pool: tournamentId_poolId_mX (e.g., tournament123_pool_A_m1)
-    // - KOB: tournamentId_roundId_pool_X_mY
-    // Extract tournament ID (everything before the first underscore followed by 'r' or 'pool')
+    // - Pool Play: tournamentId_pool_X_mY
+    // - KOB: tournamentId_poolId_mX (both are Firebase IDs starting with -)
+    //   Example: -Od_0YzmQxQE4NIKRtgl_-Od_0Z0_5PUZ3zNxSPwJ_pool_A_m1
+    //   Tournament ID: -Od_0YzmQxQE4NIKRtgl
+    //   Pool ID: -Od_0Z0_5PUZ3zNxSPwJ_pool_A
     let tournamentId;
 
-    if (matchId.includes('_r') && !matchId.includes('_pool')) {
-      // Playoff match: split on _r
+    // Look for the second occurrence of _- (which marks the start of the second Firebase ID)
+    // This pattern indicates a KOB match with two Firebase IDs
+    const secondFirebaseIdPattern = /_-[A-Za-z0-9]/;
+    const match = matchId.match(secondFirebaseIdPattern);
+
+    if (match) {
+      // KOB match - extract everything before the second Firebase ID starts
+      tournamentId = matchId.substring(0, match.index);
+      console.log('[getMatch] KOB match detected, tournamentId:', tournamentId);
+    } else if (matchId.includes('_r')) {
+      // Playoff match
       tournamentId = matchId.split('_r')[0];
-      console.log('Detected playoff match, tournamentId:', tournamentId);
-    } else if (matchId.includes('_pool')) {
-      // Pool or KOB match: split on _pool and take everything before
-      tournamentId = matchId.split('_pool')[0];
-      // Handle KOB format where roundId might be before _pool
-      const parts = tournamentId.split('_');
-      if (parts.length > 1) {
-        tournamentId = parts[0]; // First part is always tournament ID
-      }
-      console.log('Detected pool/KOB match, tournamentId:', tournamentId);
+      console.log('[getMatch] Playoff match detected, tournamentId:', tournamentId);
+    } else if (matchId.includes('_pool_')) {
+      // Pool Play match
+      tournamentId = matchId.split('_pool_')[0];
+      console.log('[getMatch] Pool Play match detected, tournamentId:', tournamentId);
     } else {
-      // Fallback: try to extract from path parts
+      // Fallback - take first part
       const parts = matchId.split('_');
-      tournamentId = parts[0]; // Assume first part is tournament ID
-      console.log('Fallback extraction, tournamentId:', tournamentId);
+      tournamentId = parts[0];
+      console.log('[getMatch] Fallback, tournamentId:', tournamentId);
     }
 
-    console.log('Calling getMatchById with:', tournamentId, matchId);
-    const match = await getMatchById(tournamentId, matchId);
-    console.log('Match retrieved:', match);
-
-    return match;
+    console.log('[getMatch] Fetching match with tournamentId:', tournamentId, 'matchId:', matchId);
+    const matchData = await getMatchById(tournamentId, matchId);
+    console.log('[getMatch] Match retrieved:', matchData ? 'Found' : 'Not found');
+    return matchData;
   } catch (error) {
-    console.error('Error getting match:', error);
+    console.error('[getMatch] Error getting match:', error);
     throw error;
   }
 }
@@ -270,6 +275,12 @@ export async function approveScore(matchId, submissionId, adminUid) {
       approvedAt: Date.now(),
       approvedBy: adminUid,
     };
+
+    // For KOB matches, also update team scores
+    if (match.matchType === 'kob') {
+      matchUpdates['team1/score'] = score1;
+      matchUpdates['team2/score'] = score2;
+    }
 
     // Include setScores if this came from scoreboard
     if (setScores && Array.isArray(setScores)) {

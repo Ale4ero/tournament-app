@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ref, get } from 'firebase/database';
+import { database } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { getMatch } from '../services/match.service';
+import { getTournamentById } from '../services/tournament.service';
+import { subscribePlayers } from '../services/kob.service';
 import { createScoreboard, deleteScoreboard, getScoreboard } from '../services/scoreboard.service';
 import useScoreboardLogic from '../components/scoreboard/useScoreboardLogic';
 import { SCOREBOARD_STATUS } from '../utils/constants';
@@ -18,6 +22,8 @@ export default function ScoreboardPage() {
   const { user, isAdmin } = useAuth();
 
   const [match, setMatch] = useState(null);
+  const [tournament, setTournament] = useState(null);
+  const [players, setPlayers] = useState({});
   const [scoreboardId, setScoreboardId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -99,6 +105,25 @@ export default function ScoreboardPage() {
 
       setMatch(matchData);
 
+      // Load tournament data
+      const tournamentData = await getTournamentById(matchData.tournamentId);
+      setTournament(tournamentData);
+
+      // If KOB tournament, fetch players first before creating scoreboard
+      let kobPlayers = {};
+      if (tournamentData?.type === 'kob') {
+        // Fetch players data synchronously
+        const playersRef = ref(database, `tournaments/${matchData.tournamentId}/players`);
+        const playersSnapshot = await get(playersRef);
+        if (playersSnapshot.exists()) {
+          kobPlayers = playersSnapshot.val();
+          setPlayers(kobPlayers);
+        }
+
+        // Also subscribe for real-time updates
+        subscribePlayers(matchData.tournamentId, setPlayers);
+      }
+
       // Check if match already has a scoreboard
       if (matchData.scoreboardId) {
         // Check if the scoreboard is completed (from a rejected submission)
@@ -108,17 +133,17 @@ export default function ScoreboardPage() {
           // Scoreboard is completed but submission was rejected - delete it and create new one
           console.log('Deleting old completed scoreboard and creating new one');
           await deleteScoreboard(matchData.scoreboardId);
-          await initializeScoreboard(matchData);
+          await initializeScoreboard(matchData, kobPlayers);
         } else if (existingScoreboard) {
           // Scoreboard exists and is active - use it
           setScoreboardId(matchData.scoreboardId);
         } else {
           // Scoreboard doesn't exist (was deleted) - create new one
-          await initializeScoreboard(matchData);
+          await initializeScoreboard(matchData, kobPlayers);
         }
       } else {
         // Create new scoreboard for any user
-        await initializeScoreboard(matchData);
+        await initializeScoreboard(matchData, kobPlayers);
       }
 
       setLoading(false);
@@ -129,10 +154,10 @@ export default function ScoreboardPage() {
     }
   };
 
-  const initializeScoreboard = async (matchData) => {
+  const initializeScoreboard = async (matchData, kobPlayers = {}) => {
     try {
       setInitializing(true);
-      const newScoreboardId = await createScoreboard(matchData, user?.uid || 'anonymous');
+      const newScoreboardId = await createScoreboard(matchData, user?.uid || 'anonymous', kobPlayers);
       setScoreboardId(newScoreboardId);
     } catch (err) {
       console.error('Error initializing scoreboard:', err);
@@ -163,7 +188,7 @@ export default function ScoreboardPage() {
   const handleExit = () => {
     // If match is already completed, just navigate away
     if (isCompleted) {
-      navigate(`/match/${matchId}`);
+      navigateToMatch();
       return;
     }
 
@@ -182,10 +207,19 @@ export default function ScoreboardPage() {
     setShowExitConfirmModal(true);
   };
 
+  const navigateToMatch = () => {
+    // For KOB matches, use the tournaments route
+    if (tournament?.type === 'kob' && match?.tournamentId) {
+      navigate(`/tournaments/${match.tournamentId}/matches/${matchId}`);
+    } else {
+      navigate(`/match/${matchId}`);
+    }
+  };
+
   const handleExitWithoutSaving = async () => {
     try {
       await deleteScoreboard(scoreboardId);
-      navigate(`/match/${matchId}`);
+      navigateToMatch();
     } catch (err) {
       console.error('Error deleting scoreboard:', err);
       alert('Failed to delete scoreboard');
@@ -194,13 +228,19 @@ export default function ScoreboardPage() {
 
   const handleExitWithSaving = () => {
     // Just navigate away, scoreboard is automatically saved
-    navigate(`/match/${matchId}`);
+    navigateToMatch();
   };
 
   const handleSubmitSuccess = () => {
-    navigate(`/match/${matchId}`, {
-      state: { message: 'Score submitted successfully! Awaiting admin approval.' },
-    });
+    if (tournament?.type === 'kob' && match?.tournamentId) {
+      navigate(`/tournaments/${match.tournamentId}/matches/${matchId}`, {
+        state: { message: 'Score submitted successfully! Awaiting admin approval.' },
+      });
+    } else {
+      navigate(`/match/${matchId}`, {
+        state: { message: 'Score submitted successfully! Awaiting admin approval.' },
+      });
+    }
   };
 
   if (loading || scoreboardLoading || initializing) {
@@ -232,7 +272,7 @@ export default function ScoreboardPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-900 text-center mb-2">Error</h2>
           <p className="text-gray-600 text-center mb-6">{error || scoreboardError}</p>
-          <button onClick={() => navigate(`/match/${matchId}`)} className="btn-primary w-full">
+          <button onClick={navigateToMatch} className="btn-primary w-full">
             Back to Match
           </button>
         </div>
@@ -471,7 +511,7 @@ export default function ScoreboardPage() {
             <p className="text-gray-600 mb-6">
               The score has been submitted for admin review. You can now exit the scoreboard.
             </p>
-            <button onClick={() => navigate(`/match/${matchId}`)} className="btn-primary w-full">
+            <button onClick={navigateToMatch} className="btn-primary w-full">
               Back to Match
             </button>
           </div>

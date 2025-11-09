@@ -389,9 +389,10 @@ export async function updatePlayerStats(tournamentId, roundId, poolId, matchResu
       // Update winners
       winningTeam.players.forEach(playerId => {
         if (standings[playerId]) {
-          standings[playerId].wins += 1;
-          standings[playerId].pointsFor += winningTeam.score;
-          standings[playerId].pointsAgainst += losingTeam.score;
+          standings[playerId].wins = (standings[playerId].wins || 0) + 1;
+          standings[playerId].losses = standings[playerId].losses || 0; // Ensure losses exists
+          standings[playerId].pointsFor = (standings[playerId].pointsFor || 0) + winningTeam.score;
+          standings[playerId].pointsAgainst = (standings[playerId].pointsAgainst || 0) + losingTeam.score;
           standings[playerId].diff = standings[playerId].pointsFor - standings[playerId].pointsAgainst;
         }
       });
@@ -399,8 +400,10 @@ export async function updatePlayerStats(tournamentId, roundId, poolId, matchResu
       // Update losers
       losingTeam.players.forEach(playerId => {
         if (standings[playerId]) {
-          standings[playerId].pointsFor += losingTeam.score;
-          standings[playerId].pointsAgainst += winningTeam.score;
+          standings[playerId].wins = standings[playerId].wins || 0; // Ensure wins exists
+          standings[playerId].losses = (standings[playerId].losses || 0) + 1;
+          standings[playerId].pointsFor = (standings[playerId].pointsFor || 0) + losingTeam.score;
+          standings[playerId].pointsAgainst = (standings[playerId].pointsAgainst || 0) + winningTeam.score;
           standings[playerId].diff = standings[playerId].pointsFor - standings[playerId].pointsAgainst;
         }
       });

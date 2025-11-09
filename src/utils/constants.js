@@ -86,6 +86,7 @@ export const DEFAULT_KOB_CONFIG = {
     firstTo: 21,
     winBy: 2,
     cap: 25,
+    bestOf: 1, // 1 set per match for KOB
   },
 };
 
