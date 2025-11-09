@@ -15,8 +15,19 @@ async function updateTournamentStatus(tournamentId) {
     const tournament = await getTournamentById(tournamentId);
     const allMatches = await getMatchesByTournament(tournamentId);
     const isPoolPlayTournament = tournament.type === 'pool_play_bracket';
+    const isKOBTournament = tournament.type === 'kob';
 
-    if (isPoolPlayTournament) {
+    if (isKOBTournament) {
+      // For KOB tournaments, DON'T auto-complete
+      // Tournament completion is manually controlled via advanceToNextRound in kob.service.js
+      const anyCompleted = allMatches.some(m => m.status === MATCH_STATUS.COMPLETED);
+
+      if (anyCompleted && tournament.status === 'upcoming') {
+        console.log('KOB tournament has started - updating to live');
+        await updateTournament(tournamentId, { status: 'live' });
+      }
+      // Do NOT auto-complete KOB tournaments - admin must advance rounds manually
+    } else if (isPoolPlayTournament) {
       // For pool play tournaments, check pool vs playoff matches separately
       const poolMatches = allMatches.filter(m => m.matchType === 'pool');
       const playoffMatches = allMatches.filter(m => m.matchType === 'playoff');

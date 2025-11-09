@@ -552,6 +552,31 @@ export async function getAdvancingPlayers(tournamentId, roundId, advancePerPool)
  */
 export async function advanceToNextRound(tournamentId, currentRoundId, currentRoundNumber, advancePerPool, poolSize = 4) {
   try {
+    // Get advancing players BEFORE marking round complete
+    const advancingPlayers = await getAdvancingPlayers(tournamentId, currentRoundId, advancePerPool);
+    console.log('Advancing players:', advancingPlayers.length, advancingPlayers);
+
+    // Get the current round to check how many players were in it
+    const currentRoundRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}/rounds/${currentRoundId}`);
+    const currentRoundSnapshot = await get(currentRoundRef);
+    const currentRound = currentRoundSnapshot.val();
+
+    // Count players in current round
+    let currentRoundPlayerCount = 0;
+    if (currentRound && currentRound.poolIds) {
+      for (const poolId of currentRound.poolIds) {
+        const poolRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}/rounds/${currentRoundId}/pools/${poolId}`);
+        const poolSnapshot = await get(poolRef);
+        if (poolSnapshot.exists()) {
+          const pool = poolSnapshot.val();
+          currentRoundPlayerCount += pool.playerIds?.length || 0;
+        }
+      }
+    }
+
+    console.log('Current round player count:', currentRoundPlayerCount);
+    console.log('Should complete tournament?', currentRoundPlayerCount <= 4);
+
     // Mark current round as completed
     await update(
       ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}/rounds/${currentRoundId}`),
@@ -561,12 +586,10 @@ export async function advanceToNextRound(tournamentId, currentRoundId, currentRo
       }
     );
 
-    // Get advancing players
-    const advancingPlayers = await getAdvancingPlayers(tournamentId, currentRoundId, advancePerPool);
-
-    // Check if we should end the tournament (4 or fewer players)
-    if (advancingPlayers.length <= 4) {
-      // This is the final round - compute final standings
+    // Check if this was the final round (4 or fewer players competed in THIS round)
+    if (currentRoundPlayerCount <= 4) {
+      console.log('Completing tournament - final round had', currentRoundPlayerCount, 'players');
+      // This was the final round - compute final standings
       await computeFinalStandings(tournamentId, currentRoundId, advancingPlayers);
 
       await update(ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`), {
@@ -576,7 +599,8 @@ export async function advanceToNextRound(tournamentId, currentRoundId, currentRo
       return null;
     }
 
-    // Generate next round
+    // Generate next round with advancing players
+    console.log('Generating next round with', advancingPlayers.length, 'players');
     const nextRoundNumber = currentRoundNumber + 1;
     return await generateRoundPools(tournamentId, nextRoundNumber, advancingPlayers, poolSize);
   } catch (error) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { database } from '../services/firebase';
 import Layout from '../components/layout/Layout';
@@ -16,7 +16,8 @@ import RoundManagement from '../components/kob/RoundManagement';
  * KOBTournamentView - Main view for King of the Beach tournaments
  */
 export default function KOBTournamentView() {
-  const { tournamentId } = useParams();
+  const { tournamentId} = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
   const [tournament, setTournament] = useState(null);
   const [players, setPlayers] = useState({});
@@ -24,6 +25,7 @@ export default function KOBTournamentView() {
   const [pools, setPools] = useState({}); // Separate state for pools
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRoundId, setSelectedRoundId] = useState(null);
 
   // All useEffect calls at the top level
   useEffect(() => {
@@ -115,8 +117,13 @@ export default function KOBTournamentView() {
   }
 
   // Get current round
-  const roundsList = Object.values(rounds).sort((a, b) => b.roundNumber - a.roundNumber);
-  const currentRound = roundsList.find(r => r.status !== 'completed') || roundsList[0];
+  const roundsList = rounds ? Object.values(rounds).sort((a, b) => a.roundNumber - b.roundNumber) : [];
+  const currentRound = roundsList.find(r => r.status !== 'completed') || roundsList[roundsList.length - 1];
+
+  // Determine which round to display (selected or current)
+  const displayRound = selectedRoundId && rounds[selectedRoundId]
+    ? rounds[selectedRoundId]
+    : currentRound;
 
   // Calculate overall standings
   const overallStandings = Object.fromEntries(
@@ -131,9 +138,9 @@ export default function KOBTournamentView() {
     ])
   );
 
-  // Get pools for current round using the pools state
-  const currentPools = currentRound && currentRound.poolIds
-    ? currentRound.poolIds
+  // Get pools for display round using the pools state
+  const displayPools = displayRound && displayRound.poolIds
+    ? displayRound.poolIds
         .map(poolId => pools[poolId])
         .filter(Boolean)
     : [];
@@ -209,16 +216,83 @@ export default function KOBTournamentView() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - 2 columns */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Pools Display */}
-            {currentRound && (
-              <KOBPoolList
-                pools={currentPools}
-                players={players}
-                matches={matches}
-                tournamentId={tournamentId}
-                roundId={currentRound.id}
-              />
-            )}
+            {/* Rounds Section */}
+            <div className="card">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Rounds</h2>
+
+              {/* No Rounds Message */}
+              {roundsList.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No rounds available yet
+                </div>
+              )}
+
+              {/* Round Tabs */}
+              {roundsList.length > 0 && (
+                <div className="border-b border-gray-200 mb-6">
+                  <div className="flex flex-wrap gap-2">
+                    {roundsList.map((round) => {
+                      const isSelected = displayRound?.id === round.id;
+                      const isCurrent = currentRound?.id === round.id;
+                      const playerCount = round.poolIds
+                        ? round.poolIds.reduce((count, poolId) => {
+                            const pool = pools[poolId];
+                            return count + (pool?.playerIds?.length || 0);
+                          }, 0)
+                        : 0;
+
+                      return (
+                        <button
+                          key={round.id}
+                          onClick={() => setSelectedRoundId(round.id === selectedRoundId ? null : round.id)}
+                          className={`px-4 py-2 rounded-t-lg font-medium transition-colors relative ${
+                            isSelected
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>Round {round.roundNumber}</span>
+                            {isCurrent && !isCompleted && (
+                              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                            )}
+                          </div>
+                          <div className="text-xs opacity-75 mt-1">
+                            {playerCount} player{playerCount !== 1 ? 's' : ''}
+                            {round.status === 'completed' && ' ✓'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Pools Display for Selected Round */}
+              {displayRound && (
+                <div>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Round {displayRound.roundNumber}
+                      {displayRound.status === 'completed' && (
+                        <span className="ml-2 text-sm text-green-600">(Completed)</span>
+                      )}
+                      {currentRound?.id === displayRound.id && !isCompleted && (
+                        <span className="ml-2 text-sm text-blue-600">(Current)</span>
+                      )}
+                    </h3>
+                  </div>
+
+                  <KOBPoolList
+                    pools={displayPools}
+                    players={players}
+                    matches={matches}
+                    tournamentId={tournamentId}
+                    roundId={displayRound.id}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Sidebar - Overall Leaderboard */}

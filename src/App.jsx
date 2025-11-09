@@ -22,9 +22,9 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/tournament/:id" element={<TournamentView />} />
           <Route path="/tournaments/:tournamentId" element={<KOBTournamentView />} />
           <Route path="/tournaments/:tournamentId/matches/:matchId" element={<MatchPage />} />
+          <Route path="/tournament/:id" element={<TournamentView />} />
           <Route path="/match/:matchId" element={<MatchPage />} />
           <Route path="/match/:matchId/scoreboard" element={<ScoreboardPage />} />
 

@@ -78,13 +78,17 @@ export default function RoundManagement({ tournament, currentRound, onRoundAdvan
           <p className="text-sm text-gray-600 mt-1">
             {isRoundActive
               ? 'Complete all matches to advance to the next round'
-              : 'Round completed - ready to advance'}
+              : 'Round completed - click button to advance'}
           </p>
         </div>
 
-        {isRoundActive && (
+        {isRoundActive ? (
           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
             In Progress
+          </span>
+        ) : (
+          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+            Completed
           </span>
         )}
       </div>
@@ -98,15 +102,13 @@ export default function RoundManagement({ tournament, currentRound, onRoundAdvan
       <div className="mt-4">
         <button
           onClick={handleAdvanceRound}
-          disabled={loading || checking || !isRoundActive}
+          disabled={loading || checking}
           className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {checking
             ? 'Checking completion...'
             : loading
             ? 'Advancing to next round...'
-            : currentRound.status === 'completed'
-            ? 'Round already completed'
             : 'Complete Round & Advance Top Players'}
         </button>
 
