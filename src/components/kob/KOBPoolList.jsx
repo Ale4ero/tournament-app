@@ -7,8 +7,9 @@ import KOBPoolCard from './KOBPoolCard';
  * @param {Array} matches - All matches
  * @param {string} tournamentId - Tournament ID
  * @param {string} roundId - Round ID
+ * @param {boolean} isFinalRound - Whether this is the final round
  */
-export default function KOBPoolList({ pools, players, matches, tournamentId, roundId }) {
+export default function KOBPoolList({ pools, players, matches, tournamentId, roundId, isFinalRound }) {
   if (!pools || pools.length === 0) {
     return (
       <div className="bg-gray-50 rounded-lg p-8 text-center">
@@ -35,6 +36,7 @@ export default function KOBPoolList({ pools, players, matches, tournamentId, rou
             matches={matches}
             tournamentId={tournamentId}
             roundId={roundId}
+            isFinalRound={isFinalRound}
           />
         ))}
       </div>

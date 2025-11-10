@@ -148,6 +148,21 @@ export default function KOBTournamentView() {
   const isCompleted = tournament.status === 'completed';
   const isFinal = currentRound && currentRound.roundNumber > 1 && Object.keys(players).filter(k => !players[k].eliminated).length <= 4;
 
+  // Check if a round is a final round (4 or fewer players)
+  const isRoundFinal = (round) => {
+    if (!round || !round.poolIds) return false;
+
+    let playerCount = 0;
+    round.poolIds.forEach(poolId => {
+      const pool = pools[poolId];
+      if (pool && pool.playerIds) {
+        playerCount += pool.playerIds.length;
+      }
+    });
+
+    return playerCount <= 4;
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
@@ -252,7 +267,7 @@ export default function KOBTournamentView() {
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span>Round {round.roundNumber}</span>
+                            <span>{isRoundFinal(round) ? 'Final Round' : `Round ${round.roundNumber}`}</span>
                             {isCurrent && !isCompleted && (
                               <span className="w-2 h-2 bg-green-400 rounded-full"></span>
                             )}
@@ -273,7 +288,7 @@ export default function KOBTournamentView() {
                 <div>
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Round {displayRound.roundNumber}
+                      {isRoundFinal(displayRound) ? 'Final Round' : `Round ${displayRound.roundNumber}`}
                       {displayRound.status === 'completed' && (
                         <span className="ml-2 text-sm text-green-600">(Completed)</span>
                       )}
@@ -289,6 +304,7 @@ export default function KOBTournamentView() {
                     matches={matches}
                     tournamentId={tournamentId}
                     roundId={displayRound.id}
+                    isFinalRound={isRoundFinal(displayRound)}
                   />
                 </div>
               )}

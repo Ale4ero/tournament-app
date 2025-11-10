@@ -63,10 +63,7 @@ export default function Leaderboard({ players, standings, title = "Leaderboard",
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedPlayers.map((player, index) => (
-              <tr
-                key={player.playerId}
-                className={index < 2 ? 'bg-green-50' : ''}
-              >
+              <tr key={player.playerId}>
                 {showRank && (
                   <td className="px-3 py-3 whitespace-nowrap">
                     <div className="flex items-center">
@@ -124,11 +121,6 @@ export default function Leaderboard({ players, standings, title = "Leaderboard",
       </div>
       <div className="mt-3 text-xs text-gray-500 border-t pt-3">
         <strong>Legend:</strong> PF = Points For, PA = Points Against, Diff = Point Differential
-        {showRank && (
-          <span className="ml-2">
-            | <span className="text-green-600">Green highlight</span> = Advancing players
-          </span>
-        )}
       </div>
     </div>
   );

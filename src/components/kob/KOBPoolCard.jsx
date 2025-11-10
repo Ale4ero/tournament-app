@@ -10,8 +10,9 @@ import KOBMatchCard from './KOBMatchCard';
  * @param {Array} matches - All matches
  * @param {string} tournamentId - Tournament ID
  * @param {string} roundId - Round ID
+ * @param {boolean} isFinalRound - Whether this is the final round
  */
-export default function KOBPoolCard({ pool, players, matches, tournamentId, roundId }) {
+export default function KOBPoolCard({ pool, players, matches, tournamentId, roundId, isFinalRound }) {
   const [activeView, setActiveView] = useState('standings'); // 'standings' | 'matches'
   const [standings, setStandings] = useState(pool?.standings || {});
 
@@ -142,7 +143,7 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
                       return (b.diff || 0) - (a.diff || 0);
                     })
                     .map((player, index) => {
-                      const isAdvancing = index < 2; // Top 2 advance (or based on tournament config)
+                      const isAdvancing = !isFinalRound && index < 2; // Top 2 advance (or based on tournament config), but not in final round
                       const wins = player.wins || 0;
                       const losses = player.losses || 0;
                       const pointsFor = player.pointsFor || 0;
@@ -183,7 +184,7 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
                 )}
               </tbody>
             </table>
-            {pool.playerIds && pool.playerIds.length > 0 && (
+            {pool.playerIds && pool.playerIds.length > 0 && !isFinalRound && (
               <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
                 <span className="inline-flex items-center gap-1">
                   <span className="text-green-600">✓</span>

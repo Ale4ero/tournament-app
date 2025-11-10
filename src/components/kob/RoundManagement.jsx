@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { advanceToNextRound, isRoundCompleted } from '../../services/kob.service';
 
 /**
@@ -8,6 +8,24 @@ export default function RoundManagement({ tournament, currentRound, onRoundAdvan
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
+  const [allMatchesCompleted, setAllMatchesCompleted] = useState(false);
+
+  // Check if all matches in the current round are completed
+  useEffect(() => {
+    async function checkCompletion() {
+      if (!tournament?.id || !currentRound?.id) return;
+
+      const completed = await isRoundCompleted(tournament.id, currentRound.id);
+      setAllMatchesCompleted(completed);
+    }
+
+    checkCompletion();
+
+    // Re-check every 3 seconds to detect when matches are completed
+    const interval = setInterval(checkCompletion, 3000);
+
+    return () => clearInterval(interval);
+  }, [tournament?.id, currentRound?.id]);
 
   const handleAdvanceRound = async () => {
     if (!currentRound) {
@@ -76,19 +94,21 @@ export default function RoundManagement({ tournament, currentRound, onRoundAdvan
             Round {currentRound.roundNumber} Management
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            {isRoundActive
+            {!allMatchesCompleted
               ? 'Complete all matches to advance to the next round'
-              : 'Round completed - click button to advance'}
+              : isRoundActive
+              ? 'All matches completed - ready to advance'
+              : 'Round completed'}
           </p>
         </div>
 
-        {isRoundActive ? (
+        {!allMatchesCompleted ? (
           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
             In Progress
           </span>
         ) : (
           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-            Completed
+            Ready
           </span>
         )}
       </div>
@@ -99,24 +119,26 @@ export default function RoundManagement({ tournament, currentRound, onRoundAdvan
         </div>
       )}
 
-      <div className="mt-4">
-        <button
-          onClick={handleAdvanceRound}
-          disabled={loading || checking}
-          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {checking
-            ? 'Checking completion...'
-            : loading
-            ? 'Advancing to next round...'
-            : 'Complete Round & Advance Top Players'}
-        </button>
+      {allMatchesCompleted && (
+        <div className="mt-4">
+          <button
+            onClick={handleAdvanceRound}
+            disabled={loading || checking}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {checking
+              ? 'Checking completion...'
+              : loading
+              ? 'Advancing to next round...'
+              : 'Complete Round & Advance Top Players'}
+          </button>
 
-        <p className="text-xs text-gray-500 mt-2">
-          This will finalize the current round standings and create pools for the next round
-          with the top {tournament.kobConfig?.advancePerPool || 2} player(s) from each pool.
-        </p>
-      </div>
+          <p className="text-xs text-gray-500 mt-2">
+            This will finalize the current round standings and create pools for the next round
+            with the top {tournament.kobConfig?.advancePerPool || 2} player(s) from each pool.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
