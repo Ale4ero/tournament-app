@@ -7,6 +7,8 @@ import Layout from '../components/layout/Layout';
 import { getTournamentDraft, deleteTournamentDraft } from '../services/tournament.service';
 import { createKOBTournament, generateRoundPools } from '../services/kob.service';
 import { DEFAULT_KOB_CONFIG } from '../utils/constants';
+import TeamSeedingList from '../components/pools/TeamSeedingList';
+import CollapsibleCard from '../components/pools/CollapsibleCard';
 
 /**
  * KOBSetupPage - Configuration page for King of the Beach tournaments
@@ -25,6 +27,9 @@ export default function KOBSetupPage() {
     advancePerPool: DEFAULT_KOB_CONFIG.advancePerPool,
     matchRules: { ...DEFAULT_KOB_CONFIG.matchRules },
   });
+
+  // Team seeding state
+  const [seededPlayers, setSeededPlayers] = useState([]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -48,6 +53,11 @@ export default function KOBSetupPage() {
         }
 
         setDraft(draftData);
+
+        // Initialize seeded players (use existing seed order if available)
+        if (draftData.players) {
+          setSeededPlayers(draftData.players);
+        }
       } catch (err) {
         console.error('Error loading draft:', err);
         setError('Failed to load tournament draft');
@@ -70,6 +80,25 @@ export default function KOBSetupPage() {
     }));
   };
 
+  // Team seeding handlers
+  const handleReorderPlayers = (reorderedPlayers) => {
+    setSeededPlayers(reorderedPlayers);
+  };
+
+  const handleResetAlphabetically = () => {
+    const sorted = [...seededPlayers].sort((a, b) => a.localeCompare(b));
+    setSeededPlayers(sorted);
+  };
+
+  const handleRandomize = () => {
+    const shuffled = [...seededPlayers];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    setSeededPlayers(shuffled);
+  };
+
   const handleCreateTournament = async () => {
     if (!draft || !draft.players) {
       setError('No players found');
@@ -80,7 +109,7 @@ export default function KOBSetupPage() {
     setError('');
 
     try {
-      // Create KOB tournament
+      // Create KOB tournament with seeded players
       console.log('Creating KOB tournament...');
       const tournamentId = await createKOBTournament(
         {
@@ -89,19 +118,19 @@ export default function KOBSetupPage() {
           startDate: draft.startDate,
           endDate: draft.endDate,
         },
-        draft.players,
+        seededPlayers, // Use seeded order
         kobConfig,
         user.uid,
         organizationId
       );
       console.log('Tournament created with ID:', tournamentId);
 
-      // Generate first round
-      console.log('Generating Round 1 with players:', draft.players.map((_, i) => `player_${i + 1}`));
+      // Generate first round with seeded player IDs
+      console.log('Generating Round 1 with players:', seededPlayers.map((_, i) => `player_${i + 1}`));
       const roundData = await generateRoundPools(
         tournamentId,
         1, // Round 1
-        draft.players.map((_, i) => `player_${i + 1}`),
+        seededPlayers.map((_, i) => `player_${i + 1}`),
         kobConfig.poolSize
       );
       console.log('Round 1 generated:', roundData);
@@ -190,17 +219,17 @@ export default function KOBSetupPage() {
         )}
 
         <div className="space-y-6">
-          {/* Players Summary */}
-          <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Players ({numPlayers})</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {draft?.players?.map((player, index) => (
-                <div key={index} className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded">
-                  {index + 1}. {player}
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Configure Team Seeding */}
+          <CollapsibleCard title="Configure Team Seeding" defaultOpen={true}>
+            <TeamSeedingList
+              teams={seededPlayers}
+              onReorder={handleReorderPlayers}
+              onResetAlphabetically={handleResetAlphabetically}
+              onRandomize={handleRandomize}
+              instructionText="Snake seeding will distribute players across pools to balance competition."
+              footerText={`${seededPlayers.length} players ranked • Pools will be generated using snake seeding when you click "Create Tournament"`}
+            />
+          </CollapsibleCard>
 
           {/* Pool Configuration */}
           <div className="card">

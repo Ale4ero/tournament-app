@@ -74,7 +74,14 @@ function SortableTeamItem({ id, index, teamName }) {
  * TeamSeedingList Component
  * Displays a sortable list of teams with drag-and-drop functionality
  */
-export default function TeamSeedingList({ teams, onReorder, onResetAlphabetically, onRandomize }) {
+export default function TeamSeedingList({
+  teams,
+  onReorder,
+  onResetAlphabetically,
+  onRandomize,
+  instructionText = "Snake seeding will distribute teams across pools to balance competition.",
+  footerText = null
+}) {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -99,7 +106,7 @@ export default function TeamSeedingList({ teams, onReorder, onResetAlphabeticall
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <p className="text-sm text-blue-800">
           <strong>Drag teams to reorder them.</strong> Higher seeds (lower numbers) are stronger teams.
-          Snake seeding will distribute teams across pools to balance competition.
+          {instructionText && ` ${instructionText}`}
         </p>
       </div>
 
@@ -144,10 +151,16 @@ export default function TeamSeedingList({ teams, onReorder, onResetAlphabeticall
         </SortableContext>
       </DndContext>
 
-      {/* Pool Preview Hint */}
-      <div className="mt-4 text-sm text-gray-500 text-center">
-        {teams.length} teams ranked • Pools will be generated using snake seeding when you click "Create Tournament"
-      </div>
+      {/* Footer Text */}
+      {footerText !== null ? (
+        <div className="mt-4 text-sm text-gray-500 text-center">
+          {footerText}
+        </div>
+      ) : (
+        <div className="mt-4 text-sm text-gray-500 text-center">
+          {teams.length} teams ranked • Pools will be generated using snake seeding when you click "Create Tournament"
+        </div>
+      )}
     </div>
   );
 }
