@@ -48,18 +48,8 @@ export default function RoundManagement({ tournament, currentRound, onRoundAdvan
         return;
       }
 
-      // Confirm with admin
-      const advancePerPool = tournament.kobConfig?.advancePerPool || 2;
-      if (
-        !window.confirm(
-          `Advance top ${advancePerPool} player(s) from each pool to the next round?`
-        )
-      ) {
-        setLoading(false);
-        return;
-      }
-
       // Advance to next round
+      const advancePerPool = tournament.kobConfig?.advancePerPool || 2;
       await advanceToNextRound(
         tournament.id,
         currentRound.id,
