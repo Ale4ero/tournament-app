@@ -116,15 +116,15 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
       {/* Content */}
       <div className="p-4">
         {activeView === 'standings' ? (
-          <div className="overflow-x-auto">
+          <div>
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 uppercase">Rank</th>
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 uppercase">Player</th>
-                  <th className="text-center py-2 px-3 text-xs font-semibold text-gray-600 uppercase">W-L</th>
-                  <th className="text-center py-2 px-3 text-xs font-semibold text-gray-600 uppercase">Points</th>
-                  <th className="text-center py-2 px-3 text-xs font-semibold text-gray-600 uppercase">Points +/-</th>
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600 uppercase">Rank</th>
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-gray-600 uppercase">Player</th>
+                  <th className="text-center py-2 px-1 text-xs font-semibold text-gray-600 uppercase">W-L</th>
+                  <th className="text-center py-2 px-1 text-xs font-semibold text-gray-600 uppercase">Points</th>
+                  <th className="text-center py-2 px-1 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Points +/-</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,6 +133,7 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
                     .map(playerId => ({
                       id: playerId,
                       name: players[playerId]?.name || 'Unknown',
+                      tournamentSeed: players[playerId]?.tournamentSeed,
                       ...standings[playerId]
                     }))
                     .sort((a, b) => {
@@ -152,22 +153,25 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
 
                       return (
                         <tr key={player.id} className={`border-b border-gray-100 ${isAdvancing ? 'bg-green-50' : ''}`}>
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-2">
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-1">
                               <span className="font-semibold text-gray-900">{index + 1}</span>
                               {isAdvancing && <span className="text-green-600">✓</span>}
                             </div>
                           </td>
-                          <td className="py-3 px-3">
+                          <td className="py-3 px-2">
                             <span className="font-medium text-gray-900">{player.name}</span>
+                            {player.tournamentSeed && (
+                              <span className="ml-1 text-xs text-blue-500 font-medium">(#{player.tournamentSeed})</span>
+                            )}
                           </td>
-                          <td className="py-3 px-3 text-center text-gray-700">
+                          <td className="py-3 px-1 text-center text-gray-700">
                             {wins}-{losses}
                           </td>
-                          <td className="py-3 px-3 text-center font-semibold text-gray-900">
+                          <td className="py-3 px-1 text-center font-semibold text-gray-900">
                             {wins * 3}
                           </td>
-                          <td className="py-3 px-3 text-center">
+                          <td className="py-3 px-1 text-center">
                             <span className={diff > 0 ? 'text-green-600' : diff < 0 ? 'text-red-600' : 'text-gray-600'}>
                               {diff > 0 ? '+' : ''}{diff}
                             </span>
@@ -188,7 +192,7 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
               <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
                 <span className="inline-flex items-center gap-1">
                   <span className="text-green-600">✓</span>
-                  Advances to playoffs
+                  Advances to next round
                 </span>
               </div>
             )}

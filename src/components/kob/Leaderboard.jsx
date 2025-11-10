@@ -11,6 +11,7 @@ export default function Leaderboard({ players, standings, title = "Leaderboard",
       .map(([playerId, stats]) => ({
         playerId,
         playerName: players[playerId]?.name || playerId,
+        tournamentSeed: players[playerId]?.tournamentSeed,
         ...stats,
       }))
       .sort((a, b) => {
@@ -87,6 +88,9 @@ export default function Leaderboard({ players, standings, title = "Leaderboard",
                 <td className="px-3 py-3 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {player.playerName}
+                    {player.tournamentSeed && (
+                      <span className="ml-2 text-xs text-blue-500 font-medium">(#{player.tournamentSeed})</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-3 py-3 whitespace-nowrap text-center">

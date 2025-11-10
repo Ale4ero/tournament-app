@@ -140,6 +140,7 @@ export async function createPlayers(tournamentId, playerNames) {
       playersData[playerId] = {
         id: playerId,
         name: name.trim(),
+        tournamentSeed: index + 1, // Store original seed number (1-based)
         totalWins: 0,
         totalPointsFor: 0,
         totalPointsAgainst: 0,
