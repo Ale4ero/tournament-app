@@ -369,6 +369,10 @@ export async function updateTournament(tournamentId, updates) {
  */
 export async function deleteTournament(tournamentId) {
   try {
+    // Get tournament to check type
+    const tournamentSnapshot = await get(ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`));
+    const tournament = tournamentSnapshot.exists() ? tournamentSnapshot.val() : null;
+
     // Delete tournament
     const tournamentRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}`);
     await remove(tournamentRef);
@@ -380,6 +384,10 @@ export async function deleteTournament(tournamentId) {
     // Delete associated pools (for pool play tournaments)
     const poolsRef = ref(database, `pools/${tournamentId}`);
     await remove(poolsRef);
+
+    // For KOB tournaments, players and rounds are stored within the tournament node
+    // So they're already deleted when we delete the tournament
+    // But we still need to delete matches, pools, and submissions
 
     // Delete associated submissions
     const submissionsRef = ref(database, `${DB_PATHS.SUBMISSIONS}`);

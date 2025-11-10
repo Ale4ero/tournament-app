@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { database } from '../services/firebase';
 import Layout from '../components/layout/Layout';
-import { subscribeTournament } from '../services/tournament.service';
+import { subscribeTournament, deleteTournament } from '../services/tournament.service';
 import { subscribePlayers, subscribeRounds } from '../services/kob.service';
 import { useAuth } from '../contexts/AuthContext';
 import { getMatchesByTournament } from '../services/match.service';
@@ -27,6 +27,8 @@ export default function KOBTournamentView() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoundId, setSelectedRoundId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // All useEffect calls at the top level
   useEffect(() => {
@@ -90,6 +92,22 @@ export default function KOBTournamentView() {
   const handleRoundAdvanced = () => {
     // Refresh matches after round advancement
     getMatchesByTournament(tournamentId).then(setMatches);
+  };
+
+  const handleDeleteTournament = async () => {
+    if (!isAdmin) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteTournament(tournamentId);
+      // Navigate back to home after successful deletion
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting tournament:', error);
+      alert('Failed to delete tournament. Please try again.');
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   if (loading) {
@@ -194,15 +212,26 @@ export default function KOBTournamentView() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-3xl font-bold text-gray-900">{tournament.name}</h1>
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                isCompleted
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-blue-100 text-blue-800'
-              }`}
-            >
-              {isCompleted ? 'Completed' : 'In Progress'}
-            </span>
+            <div className="flex items-center gap-3">
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  isCompleted
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-blue-100 text-blue-800'
+                }`}
+              >
+                {isCompleted ? 'Completed' : 'In Progress'}
+              </span>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-1 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                  title="Delete Tournament"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
           {tournament.description && (
             <p className="text-gray-600">{tournament.description}</p>
@@ -374,6 +403,44 @@ export default function KOBTournamentView() {
             </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Delete Tournament?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete "{tournament.name}"? This action cannot be undone.
+                All matches, rounds, players, and scores will be permanently deleted.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteTournament}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Tournament'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
