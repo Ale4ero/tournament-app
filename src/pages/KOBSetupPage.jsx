@@ -308,37 +308,6 @@ export default function KOBSetupPage() {
             </div>
           </div>
 
-          {/* How KOB Works */}
-          <div className="card bg-gray-50">
-            <h2 className="text-xl font-semibold mb-3">How King of the Beach Works</h2>
-            <ul className="space-y-2 text-sm text-gray-700">
-              <li className="flex items-start">
-                <span className="text-primary-600 font-bold mr-2">1.</span>
-                <span>Players are divided into pools for Round 1</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary-600 font-bold mr-2">2.</span>
-                <span>Within each pool, players rotate partners so everyone partners with everyone else once</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary-600 font-bold mr-2">3.</span>
-                <span>Players earn points based on wins and point differential</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary-600 font-bold mr-2">4.</span>
-                <span>Top players from each pool advance to the next round</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary-600 font-bold mr-2">5.</span>
-                <span>Tournament continues until 4 or fewer players remain for the final round</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary-600 font-bold mr-2">6.</span>
-                <span>Final standings determine the King/Queen of the Beach!</span>
-              </li>
-            </ul>
-          </div>
-
           {/* Action Buttons */}
           <div className="flex gap-4">
             <button
