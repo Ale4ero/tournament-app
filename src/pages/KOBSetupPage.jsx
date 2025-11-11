@@ -126,12 +126,15 @@ export default function KOBSetupPage() {
       console.log('Tournament created with ID:', tournamentId);
 
       // Generate first round with seeded player IDs
+      // Use the selected configuration's pool size for proper distribution
+      const actualPoolSize = selectedConfig?.baseSize || kobConfig.poolSize;
       console.log('Generating Round 1 with players:', seededPlayers.map((_, i) => `player_${i + 1}`));
+      console.log('Using pool size:', actualPoolSize);
       const roundData = await generateRoundPools(
         tournamentId,
         1, // Round 1
         seededPlayers.map((_, i) => `player_${i + 1}`),
-        kobConfig.poolSize
+        actualPoolSize
       );
       console.log('Round 1 generated:', roundData);
 
@@ -167,11 +170,52 @@ export default function KOBSetupPage() {
     }
   };
 
-  // Calculate estimated pool configuration
+  // Calculate all valid pool configurations
+  // Ensure each pool has at least 4 players (minimum for KOB matches)
   const numPlayers = draft?.players?.length || 0;
-  const numPools = Math.ceil(numPlayers / kobConfig.poolSize);
-  const playersPerPool = Math.floor(numPlayers / numPools);
-  const remainder = numPlayers % numPools;
+  const MIN_POOL_SIZE = 4;
+  const MAX_POOL_SIZE = 6;
+
+  // Generate all valid pool configuration options
+  const getValidPoolConfigurations = (totalPlayers) => {
+    const configurations = [];
+    const maxPools = Math.floor(totalPlayers / MIN_POOL_SIZE);
+
+    for (let numPools = 1; numPools <= maxPools; numPools++) {
+      const baseSize = Math.floor(totalPlayers / numPools);
+      const remainder = totalPlayers % numPools;
+
+      // Check if this configuration is valid (smallest pool has at least 4 players)
+      if (baseSize >= MIN_POOL_SIZE && baseSize <= MAX_POOL_SIZE) {
+        const largerPools = remainder;
+        const smallerPools = numPools - remainder;
+
+        configurations.push({
+          numPools,
+          baseSize,
+          largerPools,
+          smallerPools,
+          largerSize: baseSize + 1,
+          description: remainder > 0
+            ? `${largerPools} pool${largerPools !== 1 ? 's' : ''} of ${baseSize + 1}, ${smallerPools} pool${smallerPools !== 1 ? 's' : ''} of ${baseSize}`
+            : `${numPools} pool${numPools !== 1 ? 's' : ''} of ${baseSize}`,
+          poolSize: baseSize // Store base size as poolSize for backward compatibility
+        });
+      }
+    }
+
+    return configurations;
+  };
+
+  const validConfigurations = getValidPoolConfigurations(numPlayers);
+
+  // Get current configuration or default to first valid option
+  const selectedConfig = validConfigurations.find(c => c.poolSize === kobConfig.poolSize) || validConfigurations[0];
+
+  // Calculate pool distribution for display
+  const numPools = selectedConfig?.numPools || 1;
+  const playersPerPool = selectedConfig?.baseSize || numPlayers;
+  const remainder = selectedConfig ? (numPlayers % selectedConfig.numPools) : 0;
 
   if (loading) {
     return (
@@ -237,28 +281,47 @@ export default function KOBSetupPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Players per Pool (4-6 recommended)
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select Pool Setup
                 </label>
-                <input
-                  type="number"
-                  min="4"
-                  max="6"
-                  value={kobConfig.poolSize}
-                  onChange={(e) => handleConfigChange('poolSize', parseInt(e.target.value))}
-                  className="input-field w-32"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  This will create <strong>{numPools}</strong> pool{numPools !== 1 ? 's' : ''} with{' '}
-                  {remainder > 0 ? (
-                    <>
-                      {remainder} pool{remainder !== 1 ? 's' : ''} of {playersPerPool + 1} players and{' '}
-                      {numPools - remainder} pool{numPools - remainder !== 1 ? 's' : ''} of {playersPerPool} players
-                    </>
-                  ) : (
-                    <>{playersPerPool} players each</>
-                  )}
-                </p>
+                {validConfigurations.length > 0 ? (
+                  <div className="space-y-2">
+                    {validConfigurations.map((config, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleConfigChange('poolSize', config.poolSize)}
+                        className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                          selectedConfig?.poolSize === config.poolSize
+                            ? 'border-blue-600 bg-blue-50 text-blue-900'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold">
+                              {config.numPools} Pool{config.numPools !== 1 ? 's' : ''}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {config.description}
+                            </div>
+                          </div>
+                          {selectedConfig?.poolSize === config.poolSize && (
+                            <div className="flex-shrink-0">
+                              <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                    ⚠️ Not enough players to create valid pools. You need at least 4 players.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -341,7 +404,7 @@ export default function KOBSetupPage() {
           <div className="flex gap-4">
             <button
               onClick={handleCreateTournament}
-              disabled={creating || numPlayers < 4}
+              disabled={creating || numPlayers < 4 || validConfigurations.length === 0}
               className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {creating ? 'Creating Tournament...' : 'Create Tournament & Start Round 1'}
