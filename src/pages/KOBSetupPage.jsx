@@ -21,6 +21,7 @@ export default function KOBSetupPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const [kobConfig, setKobConfig] = useState({
     poolSize: DEFAULT_KOB_CONFIG.poolSize,
@@ -159,15 +160,21 @@ export default function KOBSetupPage() {
     }
   };
 
-  const handleCancel = async () => {
-    if (window.confirm('Are you sure you want to cancel? This will delete the draft.')) {
-      try {
-        await deleteTournamentDraft(draftId);
-        navigate('/admin');
-      } catch (err) {
-        console.error('Error deleting draft:', err);
-      }
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    try {
+      await deleteTournamentDraft(draftId);
+      navigate('/admin');
+    } catch (err) {
+      console.error('Error deleting draft:', err);
     }
+  };
+
+  const handleCancelDismiss = () => {
+    setShowCancelConfirm(false);
   };
 
   // Calculate all valid pool configurations
@@ -410,7 +417,7 @@ export default function KOBSetupPage() {
               {creating ? 'Creating Tournament...' : 'Create Tournament & Start Round 1'}
             </button>
             <button
-              onClick={handleCancel}
+              onClick={handleCancelClick}
               disabled={creating}
               className="btn-secondary"
             >
@@ -418,6 +425,37 @@ export default function KOBSetupPage() {
             </button>
           </div>
         </div>
+
+        {/* Cancel Confirmation Dialog */}
+        {showCancelConfirm && (
+          <div
+            className="fixed inset-0 flex items-center justify-center z-50"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
+          >
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Cancel Tournament Setup?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to cancel? This will delete the draft.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={handleCancelDismiss}
+                  className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  No, Continue Editing
+                </button>
+                <button
+                  onClick={handleCancelConfirm}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  Yes, Cancel Setup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
