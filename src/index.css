@@ -77,6 +77,11 @@
     box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
   }
 
+  .input-field::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
   .badge-upcoming {
     display: inline-block;
     padding: 0.25rem 0.75rem;
@@ -105,5 +110,234 @@
     border-radius: 9999px;
     font-size: 0.875rem;
     font-weight: 500;
+  }
+
+  /* Force landscape orientation for scoreboard on mobile devices */
+  @media screen and (max-width: 1024px) and (orientation: portrait) {
+    .scoreboard-landscape {
+      position: fixed;
+      width: 100vh;
+      height: 100vw;
+      transform: rotate(90deg);
+      transform-origin: left top;
+      overflow-x: hidden;
+      overflow-y: auto;
+      left: 100%;
+      top: 0;
+    }
+
+    /* Base adjustments - very conservative for all rotated devices */
+    .scoreboard-landscape h2 {
+      font-size: 0.875rem !important;
+      line-height: 1.1 !important;
+      margin-bottom: 0.25rem !important;
+    }
+
+    .scoreboard-landscape .text-6xl {
+      font-size: 2.5rem !important;
+      line-height: 1 !important;
+    }
+
+    .scoreboard-landscape button {
+      font-size: 0.65rem !important;
+      padding: 0.3rem 0.4rem !important;
+    }
+
+    .scoreboard-landscape h1 {
+      font-size: 0.65rem !important;
+      line-height: 1.1 !important;
+    }
+
+    .scoreboard-landscape .text-xs,
+    .scoreboard-landscape .text-sm {
+      font-size: 0.55rem !important;
+    }
+
+    .scoreboard-landscape p {
+      font-size: 0.65rem !important;
+      margin: 0.25rem 0 !important;
+    }
+
+    /* Reduce all spacing significantly */
+    .scoreboard-landscape > div:first-child {
+      padding: 0.25rem 0.5rem !important;
+    }
+
+    /* Reduce sets won indicator size */
+    .scoreboard-landscape .rounded-full.w-2 {
+      width: 0.375rem !important;
+      height: 0.375rem !important;
+    }
+
+    /* Adjust current set indicator */
+    .scoreboard-landscape .bg-white.text-gray-900 {
+      font-size: 0.6rem !important;
+      padding: 0.25rem 0.5rem !important;
+    }
+
+    /* Tighter button spacing */
+    .scoreboard-landscape .space-y-2 > * + * {
+      margin-top: 0.25rem !important;
+    }
+
+    /* Hide some text on very small devices */
+    .scoreboard-landscape .opacity-60 {
+      display: none !important;
+    }
+  }
+
+  /* Slightly larger for taller devices (> 414px wide = 414px height after rotation) */
+  @media screen and (min-width: 415px) and (max-width: 1024px) and (orientation: portrait) {
+    .scoreboard-landscape h2 {
+      font-size: 1rem !important;
+    }
+
+    .scoreboard-landscape .text-6xl {
+      font-size: 3rem !important;
+    }
+
+    .scoreboard-landscape button {
+      font-size: 0.7rem !important;
+      padding: 0.35rem 0.5rem !important;
+    }
+
+    .scoreboard-landscape h1 {
+      font-size: 0.7rem !important;
+    }
+  }
+
+  /* Even larger for wide devices (> 500px wide) */
+  @media screen and (min-width: 500px) and (max-width: 1024px) and (orientation: portrait) {
+    .scoreboard-landscape h2 {
+      font-size: 1.125rem !important;
+    }
+
+    .scoreboard-landscape .text-6xl {
+      font-size: 3.5rem !important;
+    }
+
+    .scoreboard-landscape button {
+      font-size: 0.75rem !important;
+      padding: 0.4rem 0.6rem !important;
+    }
+
+    .scoreboard-landscape h1 {
+      font-size: 0.75rem !important;
+    }
+
+    .scoreboard-landscape .text-xs,
+    .scoreboard-landscape .text-sm {
+      font-size: 0.625rem !important;
+    }
+  }
+
+  /* For larger tablets and small devices (768px - 1024px) */
+  @media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+    .scoreboard-landscape h2 {
+      font-size: 1.25rem !important;
+    }
+
+    .scoreboard-landscape .text-6xl {
+      font-size: 4rem !important;
+    }
+
+    .scoreboard-landscape button {
+      font-size: 0.8rem !important;
+      padding: 0.5rem 0.75rem !important;
+    }
+
+    .scoreboard-landscape h1 {
+      font-size: 0.8rem !important;
+    }
+
+    .scoreboard-landscape .text-xs,
+    .scoreboard-landscape .text-sm {
+      font-size: 0.7rem !important;
+    }
+
+    .scoreboard-landscape p {
+      font-size: 0.75rem !important;
+    }
+  }
+
+  /* Devices in actual landscape orientation (when phone is turned sideways) */
+  @media screen and (max-width: 1024px) and (orientation: landscape) {
+    .scoreboard-landscape h2 {
+      font-size: 0.875rem !important;
+      line-height: 1.1 !important;
+      margin-bottom: 0.25rem !important;
+    }
+
+    .scoreboard-landscape .text-6xl {
+      font-size: 2.5rem !important;
+      line-height: 1 !important;
+    }
+
+    .scoreboard-landscape button {
+      font-size: 0.65rem !important;
+      padding: 0.3rem 0.4rem !important;
+    }
+
+    .scoreboard-landscape h1 {
+      font-size: 0.65rem !important;
+      line-height: 1.1 !important;
+    }
+
+    .scoreboard-landscape .text-xs,
+    .scoreboard-landscape .text-sm {
+      font-size: 0.55rem !important;
+    }
+
+    .scoreboard-landscape p {
+      font-size: 0.65rem !important;
+      margin: 0.25rem 0 !important;
+    }
+
+    .scoreboard-landscape > div:first-child {
+      padding: 0.25rem 0.5rem !important;
+    }
+
+    .scoreboard-landscape .rounded-full.w-2 {
+      width: 0.375rem !important;
+      height: 0.375rem !important;
+    }
+
+    .scoreboard-landscape .bg-white.text-gray-900 {
+      font-size: 0.6rem !important;
+      padding: 0.25rem 0.5rem !important;
+    }
+
+    .scoreboard-landscape .space-y-2 > * + * {
+      margin-top: 0.25rem !important;
+    }
+
+    .scoreboard-landscape .opacity-60 {
+      display: none !important;
+    }
+  }
+
+  /* Larger landscape devices (> 500px height in landscape) */
+  @media screen and (min-height: 500px) and (max-width: 1024px) and (orientation: landscape) {
+    .scoreboard-landscape h2 {
+      font-size: 1.125rem !important;
+    }
+
+    .scoreboard-landscape .text-6xl {
+      font-size: 3.5rem !important;
+    }
+
+    .scoreboard-landscape button {
+      font-size: 0.75rem !important;
+      padding: 0.4rem 0.6rem !important;
+    }
+
+    .scoreboard-landscape h1 {
+      font-size: 0.75rem !important;
+    }
+
+    .scoreboard-landscape .text-xs,
+    .scoreboard-landscape .text-sm {
+      font-size: 0.625rem !important;
+    }
   }
 }

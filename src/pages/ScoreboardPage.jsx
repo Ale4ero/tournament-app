@@ -289,47 +289,47 @@ export default function ScoreboardPage() {
   const isLocked = scoreboard.locked || !isActive;
 
   return (
-    <div className="fixed inset-0 bg-gray-900 overflow-hidden">
+    <div className="scoreboard-landscape fixed inset-0 bg-gray-900 overflow-hidden">
       {/* Header Bar */}
-      <div className="absolute top-0 left-0 right-0 bg-gray-800 text-white px-4 py-3 z-10 shadow-lg">
+      <div className="absolute top-0 left-0 right-0 bg-gray-800 text-white px-2 md:px-4 py-2 md:py-3 z-10 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div>
-            <h1 className="text-lg md:text-xl font-bold">{match?.tournamentName || 'Tournament'}</h1>
-            <p className="text-sm text-gray-300">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-sm md:text-xl font-bold truncate">{match?.tournamentName || 'Tournament'}</h1>
+            <p className="text-xs md:text-sm text-gray-300">
               Set {scoreboard.currentSet} of {scoreboard.rules.bestOf}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             <button
               onClick={() => setShowMatchRulesModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-1"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors flex items-center gap-1"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3 md:w-4 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Rules
+              <span className="hidden sm:inline">Rules</span>
             </button>
             {isActive && (
               <button
                 onClick={handleResetSet}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors hidden sm:block"
               >
                 Reset Set
               </button>
             )}
             <button
               onClick={handleExit}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+              className="bg-gray-700 hover:bg-gray-600 text-white px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors"
             >
-              {isCompleted ? 'Back to Match' : 'Exit'}
+              {isCompleted ? 'Back' : 'Exit'}
             </button>
           </div>
         </div>
       </div>
 
       {/* Scoreboard Grid */}
-      <div className="h-full pt-16 grid grid-cols-2">
+      <div className="h-full pt-12 md:pt-16 grid grid-cols-2">
         {/* Team 1 (Red) */}
         <ScoreSide
           teamName={scoreboard.team1}
@@ -356,10 +356,10 @@ export default function ScoreboardPage() {
       </div>
 
       {/* Center Divider */}
-      <div className="absolute inset-y-16 left-1/2 w-1 bg-white transform -translate-x-1/2 opacity-30 pointer-events-none" />
+      <div className="absolute inset-y-12 md:inset-y-16 left-1/2 w-1 bg-white transform -translate-x-1/2 opacity-30 pointer-events-none" />
 
       {/* Current Set Indicator (Center) */}
-      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-white text-gray-900 px-4 py-2 rounded-full shadow-lg font-bold text-sm z-20">
+      <div className="absolute top-14 md:top-20 left-1/2 transform -translate-x-1/2 bg-white text-gray-900 px-2 md:px-4 py-1 md:py-2 rounded-full shadow-lg font-bold text-xs md:text-sm z-20 whitespace-nowrap">
         Current Set: {scoreboard.currentSet}/{scoreboard.rules.bestOf}
       </div>
 

@@ -22,6 +22,7 @@ export default function KOBSetupPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [invalidFields, setInvalidFields] = useState([]);
 
   const [kobConfig, setKobConfig] = useState({
     poolSize: DEFAULT_KOB_CONFIG.poolSize,
@@ -75,9 +76,11 @@ export default function KOBSetupPage() {
   };
 
   const handleMatchRuleChange = (field, value) => {
+    // Allow empty string during editing, will validate on submit
+    const numValue = value === '' ? '' : parseInt(value);
     setKobConfig(prev => ({
       ...prev,
-      matchRules: { ...prev.matchRules, [field]: parseInt(value) || 0 },
+      matchRules: { ...prev.matchRules, [field]: numValue },
     }));
   };
 
@@ -106,8 +109,54 @@ export default function KOBSetupPage() {
       return;
     }
 
+    // Validate all inputs before submission
+    const { advancePerPool, matchRules } = kobConfig;
+    const { firstTo, winBy, cap } = matchRules;
+    const invalid = [];
+
+    // Validate advancePerPool
+    if (advancePerPool === '' || isNaN(advancePerPool) || advancePerPool < 1) {
+      setError('Players advancing per pool must be at least 1');
+      invalid.push('advancePerPool');
+      setInvalidFields(invalid);
+      return;
+    }
+    if (selectedConfig && advancePerPool >= selectedConfig.baseSize) {
+      setError(`Players advancing must be less than pool size (${selectedConfig.baseSize})`);
+      invalid.push('advancePerPool');
+      setInvalidFields(invalid);
+      return;
+    }
+
+    // Validate match rules
+    if (firstTo === '' || isNaN(firstTo) || firstTo < 11 || firstTo > 30) {
+      setError('First To must be between 11 and 30');
+      invalid.push('firstTo');
+      setInvalidFields(invalid);
+      return;
+    }
+    if (winBy === '' || isNaN(winBy) || winBy < 1 || winBy > 5) {
+      setError('Win By must be between 1 and 5');
+      invalid.push('winBy');
+      setInvalidFields(invalid);
+      return;
+    }
+    if (cap === '' || isNaN(cap) || cap < 15 || cap > 35) {
+      setError('Cap must be between 15 and 35');
+      invalid.push('cap');
+      setInvalidFields(invalid);
+      return;
+    }
+    if (cap <= firstTo) {
+      setError('Cap must be greater than First To');
+      invalid.push('cap');
+      setInvalidFields(invalid);
+      return;
+    }
+
     setCreating(true);
     setError('');
+    setInvalidFields([]);
 
     try {
       // Create KOB tournament with seeded players
@@ -227,7 +276,7 @@ export default function KOBSetupPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading draft...</p>
@@ -240,7 +289,7 @@ export default function KOBSetupPage() {
   if (error && !draft) {
     return (
       <Layout>
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg">
             {error}
           </div>
@@ -257,7 +306,7 @@ export default function KOBSetupPage() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">{draft?.name}</h1>
           <p className="text-gray-600 mt-1">King of the Beach Tournament Setup</p>
@@ -337,14 +386,20 @@ export default function KOBSetupPage() {
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max={kobConfig.poolSize - 1}
                   value={kobConfig.advancePerPool}
-                  onChange={(e) => handleConfigChange('advancePerPool', parseInt(e.target.value))}
-                  className="input-field w-32"
+                  onChange={(e) => {
+                    handleConfigChange('advancePerPool', e.target.value === '' ? '' : parseInt(e.target.value));
+                    // Clear invalid state when user types
+                    if (invalidFields.includes('advancePerPool')) {
+                      setInvalidFields(invalidFields.filter(f => f !== 'advancePerPool'));
+                      setError('');
+                    }
+                  }}
+                  className={`input-field w-32 ${invalidFields.includes('advancePerPool') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="1-3"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Top {kobConfig.advancePerPool} player{kobConfig.advancePerPool !== 1 ? 's' : ''} from each pool will advance to the next round
+                  Top {kobConfig.advancePerPool || 0} player{kobConfig.advancePerPool !== 1 ? 's' : ''} from each pool will advance to the next round
                 </p>
               </div>
             </div>
@@ -361,13 +416,19 @@ export default function KOBSetupPage() {
                 </label>
                 <input
                   type="number"
-                  min="11"
-                  max="30"
                   value={kobConfig.matchRules.firstTo}
-                  onChange={(e) => handleMatchRuleChange('firstTo', e.target.value)}
-                  className="input-field"
+                  onChange={(e) => {
+                    handleMatchRuleChange('firstTo', e.target.value);
+                    // Clear invalid state when user types
+                    if (invalidFields.includes('firstTo')) {
+                      setInvalidFields(invalidFields.filter(f => f !== 'firstTo'));
+                      setError('');
+                    }
+                  }}
+                  className={`input-field ${invalidFields.includes('firstTo') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="11-30"
                 />
-                <p className="text-xs text-gray-500 mt-1">Points to win</p>
+                <p className="text-xs text-gray-500 mt-1">Points to win (11-30)</p>
               </div>
 
               <div>
@@ -376,13 +437,19 @@ export default function KOBSetupPage() {
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max="5"
                   value={kobConfig.matchRules.winBy}
-                  onChange={(e) => handleMatchRuleChange('winBy', e.target.value)}
-                  className="input-field"
+                  onChange={(e) => {
+                    handleMatchRuleChange('winBy', e.target.value);
+                    // Clear invalid state when user types
+                    if (invalidFields.includes('winBy')) {
+                      setInvalidFields(invalidFields.filter(f => f !== 'winBy'));
+                      setError('');
+                    }
+                  }}
+                  className={`input-field ${invalidFields.includes('winBy') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="1-5"
                 />
-                <p className="text-xs text-gray-500 mt-1">Minimum lead to win</p>
+                <p className="text-xs text-gray-500 mt-1">Minimum lead to win (1-5)</p>
               </div>
 
               <div>
@@ -391,13 +458,19 @@ export default function KOBSetupPage() {
                 </label>
                 <input
                   type="number"
-                  min="15"
-                  max="35"
                   value={kobConfig.matchRules.cap}
-                  onChange={(e) => handleMatchRuleChange('cap', e.target.value)}
-                  className="input-field"
+                  onChange={(e) => {
+                    handleMatchRuleChange('cap', e.target.value);
+                    // Clear invalid state when user types
+                    if (invalidFields.includes('cap')) {
+                      setInvalidFields(invalidFields.filter(f => f !== 'cap'));
+                      setError('');
+                    }
+                  }}
+                  className={`input-field ${invalidFields.includes('cap') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="15-35"
                 />
-                <p className="text-xs text-gray-500 mt-1">Maximum score</p>
+                <p className="text-xs text-gray-500 mt-1">Maximum score (15-35)</p>
               </div>
             </div>
 

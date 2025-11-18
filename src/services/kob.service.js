@@ -3,34 +3,40 @@ import { database } from './firebase';
 import { DB_PATHS, MATCH_STATUS, TOURNAMENT_STATUS, DEFAULT_KOB_CONFIG } from '../utils/constants';
 
 /**
- * Generate all unique partner combinations for KOB matches
- * For 4 players A, B, C, D:
- * Match 1: A+B vs C+D
- * Match 2: A+C vs B+D
- * Match 3: A+D vs B+C
+ * Generate round-robin pairings for KOB (King of the Beach) matches
+ * Each player partners with every other player exactly once
+ * For odd numbers, one player sits out each round
  *
  * @param {Array<string>} playerIds - Array of player IDs (4-6 players)
  * @returns {Array<Object>} Array of match pairings
  */
 function generateKOBMatchPairings(playerIds) {
-  const matches = [];
   const n = playerIds.length;
-  const partnersPlayed = {}; // Track who has partnered with whom
+  const matches = [];
+
+  // For even number of players, use standard round-robin
+  if (n % 2 === 0) {
+    return generateEvenRoundRobin(playerIds);
+  } else {
+    return generateOddRoundRobin(playerIds);
+  }
+}
+
+/**
+ * Generate round-robin for even number of players (4 or 6)
+ * All players play in each round
+ */
+function generateEvenRoundRobin(playerIds) {
+  const n = playerIds.length;
+  const matches = [];
+  const partnersPlayed = {};
 
   // Initialize partner tracking
   playerIds.forEach(id => {
     partnersPlayed[id] = new Set();
   });
 
-  // Generate all possible 2-player teams
-  const teams = [];
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      teams.push([playerIds[i], playerIds[j]]);
-    }
-  }
-
-  // For each player, ensure they partner with every other player exactly once
+  // Generate all possible partnerships
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const p1 = playerIds[i];
@@ -43,7 +49,7 @@ function generateKOBMatchPairings(playerIds) {
       partnersPlayed[p1].add(p2);
       partnersPlayed[p2].add(p1);
 
-      // Find opponents - two players who haven't partnered yet
+      // Find two other players who haven't partnered yet
       const remaining = playerIds.filter(id => id !== p1 && id !== p2);
 
       for (let k = 0; k < remaining.length; k++) {
@@ -63,11 +69,124 @@ function generateKOBMatchPairings(playerIds) {
             break;
           }
         }
+        if (partnersPlayed[remaining[k]].has(remaining[k + 1])) break;
       }
     }
   }
 
   return matches;
+}
+
+/**
+ * Generate round-robin for odd number of players (5)
+ * One player sits out each round, each player partners with every other exactly once
+ *
+ * For 5 players (A,B,C,D,E), we need 10 unique partnerships:
+ * AB, AC, AD, AE, BC, BD, BE, CD, CE, DE
+ *
+ * Since we have 2 teams per match (4 players), we need 5 matches
+ * Each match uses 4 partnerships, so 5 matches = 20 partnership slots
+ * But we only have 10 unique partnerships, so each partnership appears exactly twice
+ *
+ * Actually, for proper KOB: each player should partner with each other player once
+ * With 5 players, that's 10 unique partnerships total
+ * But we can only play 2 partnerships per match (one per team)
+ * So we need 5 matches minimum to cover 10 partnerships
+ *
+ * However, each player appears in 4 out of 5 matches (sits out 1)
+ * Each player must form 4 partnerships (with each of the other 4 players)
+ */
+function generateOddRoundRobin(playerIds) {
+  const n = playerIds.length;
+
+  if (n === 5) {
+    // Hardcoded optimal schedule for 5 players
+    // This ensures each player partners with each other exactly once
+    return generate5PlayerSchedule(playerIds);
+  }
+
+  // For other odd numbers (future expansion)
+  return generateGenericOddRoundRobin(playerIds);
+}
+
+/**
+ * Generate optimal 5-player KOB schedule
+ * Based on your correct example:
+ * Match 1: Nico-Maddy vs Anderz-H (Sitting: Balo)
+ * Match 2: Nico-Anderz vs Balo-H (Sitting: Maddy)
+ * Match 3: Nico-H vs Maddy-Balo (Sitting: Anderz)
+ * Match 4: Nico-Balo vs Maddy-Anderz (Sitting: H)
+ * Match 5: Maddy-H vs Anderz-Balo (Sitting: Nico)
+ */
+function generate5PlayerSchedule(playerIds) {
+  // playerIds = [P0, P1, P2, P3, P4]
+  // We'll use indices and map them back
+
+  const schedule = [
+    { team1: [1, 2], team2: [3, 4], sitting: 0 },  // Match 1
+    { team1: [0, 3], team2: [2, 4], sitting: 1 },  // Match 2
+    { team1: [0, 4], team2: [1, 2], sitting: 3 },  // Match 3
+    { team1: [0, 1], team2: [2, 3], sitting: 4 },  // Match 4
+    { team1: [1, 4], team2: [2, 3], sitting: 0 },  // Match 5... wait this has 2-3 twice
+  ];
+
+  // Let me recalculate properly
+  // For 5 players indexed 0-4, each must partner with all others exactly once
+  // Partnerships needed: 0-1, 0-2, 0-3, 0-4, 1-2, 1-3, 1-4, 2-3, 2-4, 3-4 (10 total)
+
+  // Optimal schedule:
+  const optimalSchedule = [
+    { team1: [1, 2], team2: [3, 4], sitting: 0 },  // Partnerships: 1-2, 3-4
+    { team1: [0, 3], team2: [2, 4], sitting: 1 },  // Partnerships: 0-3, 2-4
+    { team1: [0, 4], team2: [1, 3], sitting: 2 },  // Partnerships: 0-4, 1-3
+    { team1: [0, 1], team2: [2, 4], sitting: 3 },  // Partnerships: 0-1, 2-4 (DUPLICATE!)
+  ];
+
+  // Better approach - use the actual working schedule you provided
+  // Let me map it properly:
+  // Match 1: P1-P2 vs P3-P4 (Sitting: P0)  - Maps to indices [1,2] vs [3,4], sitting 0
+  // Match 2: P0-P3 vs P2-P4 (Sitting: P1)  - Maps to indices [0,3] vs [2,4], sitting 1
+  // Match 3: P0-P4 vs P1-P2 (Sitting: P3)  - Maps to indices [0,4] vs [1,2], sitting 3
+  // Match 4: P0-P1 vs P2-P3 (Sitting: P4)  - Maps to indices [0,1] vs [2,3], sitting 4
+  // Match 5: P1-P4 vs P2-P0 (Sitting: P3)  - Maps to indices [1,4] vs [0,2], sitting 3
+
+  // Actually, let's verify with your example more carefully
+  // Players: Balo(0), Maddy(1), Anderz(2), Nico(3), H(4)
+  // Match 1: Nico-Maddy vs Anderz-H    = [3,1] vs [2,4], sitting: 0
+  // Match 2: Nico-Anderz vs Balo-H     = [3,2] vs [0,4], sitting: 1
+  // Match 3: Nico-H vs Maddy-Balo      = [3,4] vs [1,0], sitting: 2
+  // Match 4: Nico-Balo vs Maddy-Anderz = [3,0] vs [1,2], sitting: 4
+  // Match 5: Maddy-H vs Anderz-Balo    = [1,4] vs [2,0], sitting: 3
+
+  const properSchedule = [
+    { team1: [3, 1], team2: [2, 4], sitting: 0 },
+    { team1: [3, 2], team2: [0, 4], sitting: 1 },
+    { team1: [3, 4], team2: [1, 0], sitting: 2 },
+    { team1: [3, 0], team2: [1, 2], sitting: 4 },
+    { team1: [1, 4], team2: [2, 0], sitting: 3 },
+  ];
+
+  return properSchedule.map(match => ({
+    team1: [playerIds[match.team1[0]], playerIds[match.team1[1]]],
+    team2: [playerIds[match.team2[0]], playerIds[match.team2[1]]],
+    playerIds: [
+      playerIds[match.team1[0]],
+      playerIds[match.team1[1]],
+      playerIds[match.team2[0]],
+      playerIds[match.team2[1]]
+    ],
+    sittingPlayer: playerIds[match.sitting],
+  }));
+}
+
+/**
+ * Generic odd round-robin for future expansion (7, 9, etc players)
+ */
+function generateGenericOddRoundRobin(playerIds) {
+  // Placeholder for future implementation
+  // For now, just return empty to avoid errors
+  console.warn(`Generic odd round-robin not yet implemented for ${playerIds.length} players`);
+  return [];
 }
 
 /**
@@ -374,9 +493,20 @@ export async function updatePlayerStats(tournamentId, roundId, poolId, matchResu
   try {
     const { playerIds, team1, team2, winner } = matchResult;
 
-    // Determine winning and losing teams
-    const winningTeam = winner === 'team1' ? team1 : team2;
-    const losingTeam = winner === 'team1' ? team2 : team1;
+    // Determine winning and losing teams based on scores
+    let winningTeam, losingTeam;
+
+    if (team1.score > team2.score) {
+      winningTeam = team1;
+      losingTeam = team2;
+    } else if (team2.score > team1.score) {
+      winningTeam = team2;
+      losingTeam = team1;
+    } else {
+      // Tie - don't update stats
+      console.warn('Match ended in a tie, not updating stats:', matchResult);
+      return;
+    }
 
     // Update pool standings
     const poolStandingsRef = ref(

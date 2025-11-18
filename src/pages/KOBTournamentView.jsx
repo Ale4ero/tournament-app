@@ -226,9 +226,41 @@ export default function KOBTournamentView() {
 
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">{tournament.name}</h1>
-            <div className="flex items-center gap-3">
+          {/* Desktop Layout */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl font-bold text-gray-900">{tournament.name}</h1>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    isCompleted
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
+                  {isCompleted ? 'Completed' : 'In Progress'}
+                </span>
+                {canDelete && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-3 py-1 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                    title="Delete Tournament"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-500">
+              King of the Beach Tournament • {Object.keys(players).length} Players
+              {currentRound && ` • Round ${currentRound.roundNumber}`}
+            </div>
+          </div>
+
+          {/* Mobile Layout */}
+          <div className="md:hidden">
+            <h1 className="text-3xl font-bold text-gray-900 mb-3">{tournament.name}</h1>
+            <div className="flex items-center gap-3 mb-2">
               <span
                 className={`px-3 py-1 rounded-full text-sm font-medium ${
                   isCompleted
@@ -248,13 +280,10 @@ export default function KOBTournamentView() {
                 </button>
               )}
             </div>
-          </div>
-          {tournament.description && (
-            <p className="text-gray-600">{tournament.description}</p>
-          )}
-          <div className="mt-2 text-sm text-gray-500">
-            King of the Beach Tournament • {Object.keys(players).length} Players
-            {currentRound && ` • Round ${currentRound.roundNumber}`}
+            <div className="text-sm text-gray-500">
+              King of the Beach Tournament • {Object.keys(players).length} Players
+              {currentRound && ` • Round ${currentRound.roundNumber}`}
+            </div>
           </div>
         </div>
 
