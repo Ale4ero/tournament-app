@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { ref, get } from 'firebase/database';
 import { auth, database } from '../services/firebase';
 import { DB_PATHS } from '../utils/constants';
-import { onAuthStateChange, signInAdmin, signOutUser } from '../services/auth.service';
+import { onAuthStateChange, signInAdmin, signUpAdmin, signOutUser } from '../services/auth.service';
 
 const AuthContext = createContext(null);
 
@@ -48,6 +48,16 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const signUp = async (email, password) => {
+    try {
+      const userData = await signUpAdmin(email, password);
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       await signOutUser();
@@ -61,6 +71,7 @@ export function AuthProvider({ children }) {
     user,
     loading,
     signIn,
+    signUp,
     signOut,
     refreshUser,
     isAdmin: user?.role === 'admin',

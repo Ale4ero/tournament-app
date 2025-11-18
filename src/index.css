@@ -1,9 +1,18 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    background-color: #f9fafb;
+  }
+
   body {
     background-color: #f9fafb;
     color: #111827;
+  }
+
+  #root {
+    min-height: 100vh;
+    background-color: #f9fafb;
   }
 }
 

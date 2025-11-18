@@ -1,7 +1,33 @@
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 import { auth, database } from './firebase';
 import { DB_PATHS, USER_ROLE } from '../utils/constants';
+
+/**
+ * Sign up new admin user
+ * @param {string} email - Admin email
+ * @param {string} password - Admin password
+ * @returns {Promise<Object>} User object with role
+ */
+export async function signUpAdmin(email, password) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Create user profile in database
+    await createUserProfile(user.uid, user.email);
+
+    return {
+      uid: user.uid,
+      email: user.email,
+      role: USER_ROLE.ADMIN,
+      organizationId: null,
+    };
+  } catch (error) {
+    console.error('Sign up error:', error);
+    throw error;
+  }
+}
 
 /**
  * Sign in admin user

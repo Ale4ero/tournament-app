@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 // Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import CreateTournamentPage from './pages/CreateTournamentPage';
 import TournamentSetupPage from './pages/TournamentSetupPage';
@@ -22,6 +23,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/tournaments/:tournamentId" element={<KOBTournamentView />} />
           <Route path="/tournaments/:tournamentId/matches/:matchId" element={<MatchPage />} />
           <Route path="/tournament/:id" element={<TournamentView />} />
