@@ -11,6 +11,7 @@ import { formatDate } from '../utils/tournamentStatus';
 import { TOURNAMENT_STATUS, TOURNAMENT_TYPE, MATCH_STATUS } from '../utils/constants';
 import { deleteTournament } from '../services/tournament.service';
 import { regeneratePlayoffBracket } from '../services/bracket.service';
+import { canManageTournament, canDeleteTournament, canEditTournament } from '../utils/authorization';
 
 // Helper function to format tournament type display names
 const formatTournamentType = (type) => {
@@ -25,7 +26,7 @@ export default function TournamentView() {
   const { id } = useParams();
   const { tournament, loading } = useTournament(id);
   const { matches, loading: matchesLoading } = useMatches(id);
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -145,6 +146,11 @@ export default function TournamentView() {
      match.winner !== null)
   );
 
+  // Check if user can manage this tournament
+  const canManage = canManageTournament(user, tournament);
+  const canDelete = canDeleteTournament(user, tournament);
+  const canEdit = canEditTournament(user, tournament);
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -165,23 +171,23 @@ export default function TournamentView() {
               <span className={getStatusBadge(tournament.status)}>
                 {getStatusText(tournament.status)}
               </span>
-              {isAdmin && (
-                <>
-                  <button
-                    onClick={() => navigate(`/tournaments/setup/${id}?edit=true`)}
-                    disabled={tournamentHasStarted}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
-                    title={tournamentHasStarted ? 'Cannot edit tournament after it has started' : 'Edit tournament configuration'}
-                  >
-                    Edit Config
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium cursor-pointer"
-                  >
-                    Delete Tournament
-                  </button>
-                </>
+              {canEdit && (
+                <button
+                  onClick={() => navigate(`/tournaments/setup/${id}?edit=true`)}
+                  disabled={tournamentHasStarted}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+                  title={tournamentHasStarted ? 'Cannot edit tournament after it has started' : 'Edit tournament configuration'}
+                >
+                  Edit Config
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium cursor-pointer"
+                >
+                  Delete Tournament
+                </button>
               )}
             </div>
           </div>
@@ -250,7 +256,7 @@ export default function TournamentView() {
                 <PoolList tournamentId={tournament.id} />
 
                 {/* Advance to Playoffs Button (Admin Only, Pool Play Phase) */}
-                {isAdmin && tournament.status === TOURNAMENT_STATUS.POOL_PLAY && (
+                {canManage && tournament.status === TOURNAMENT_STATUS.POOL_PLAY && (
                   <div className="mt-8">
                     <AdvanceToPlayoffsButton
                       tournamentId={tournament.id}
@@ -268,7 +274,7 @@ export default function TournamentView() {
                 tournament.status === TOURNAMENT_STATUS.COMPLETED ? (
                   <>
                     {/* Regenerate Playoffs Button (Admin Only) */}
-                    {isAdmin && tournament.playoffs && (
+                    {canManage && tournament.playoffs && (
                       <div className="mb-6">
                         <button
                           onClick={handleRegeneratePlayoffs}

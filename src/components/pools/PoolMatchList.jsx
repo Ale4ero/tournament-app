@@ -19,13 +19,15 @@ import { CSS } from '@dnd-kit/utilities';
 import usePoolMatches from './usePoolMatches';
 import usePoolStandings from './usePoolStandings';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTournament } from '../../hooks/useTournament';
+import { canManageTournament } from '../../utils/authorization';
 import { updateMatchOrder } from '../../services/match.service';
 import { MATCH_STATUS } from '../../utils/constants';
 
 /**
  * Sortable Match Item Component
  */
-function SortableMatchItem({ match, teamSeedMap, isAdmin, displayMatchNumber }) {
+function SortableMatchItem({ match, teamSeedMap, canManage, displayMatchNumber }) {
   const {
     attributes,
     listeners,
@@ -95,7 +97,7 @@ function SortableMatchItem({ match, teamSeedMap, isAdmin, displayMatchNumber }) 
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {/* Drag Handle - Only for admins */}
-            {isAdmin && (
+            {canManage && (
               <button
                 type="button"
                 onClick={(e) => e.preventDefault()}
@@ -157,9 +159,13 @@ function SortableMatchItem({ match, teamSeedMap, isAdmin, displayMatchNumber }) 
  * @param {string} poolId - Pool ID
  */
 export default function PoolMatchList({ tournamentId, poolId }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const { tournament } = useTournament(tournamentId);
   const { matches, loading: matchesLoading } = usePoolMatches(tournamentId, poolId);
   const { standings, loading: standingsLoading } = usePoolStandings(tournamentId, poolId);
+
+  // Check if user can manage this tournament
+  const canManage = canManageTournament(user, tournament);
   const [localMatches, setLocalMatches] = useState([]);
 
   // Initialize local matches state when matches load
@@ -228,7 +234,7 @@ export default function PoolMatchList({ tournamentId, poolId }) {
   const displayMatches = localMatches.length > 0 ? localMatches : matches;
 
   // Non-admin view: Simple list without drag-and-drop
-  if (!isAdmin) {
+  if (!canManage) {
     return (
       <div className="space-y-2">
         {displayMatches.map((match) => {
@@ -331,7 +337,7 @@ export default function PoolMatchList({ tournamentId, poolId }) {
                 key={match.id}
                 match={match}
                 teamSeedMap={teamSeedMap}
-                isAdmin={true}
+                canManage={true}
                 displayMatchNumber={index + 1}
               />
             ))}

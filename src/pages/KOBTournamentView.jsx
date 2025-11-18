@@ -8,6 +8,7 @@ import { subscribePlayers, subscribeRounds } from '../services/kob.service';
 import { useAuth } from '../contexts/AuthContext';
 import { getMatchesByTournament } from '../services/match.service';
 import { DB_PATHS } from '../utils/constants';
+import { canManageTournament, canDeleteTournament } from '../utils/authorization';
 import Leaderboard from '../components/kob/Leaderboard';
 import KOBPoolList from '../components/kob/KOBPoolList';
 import RoundManagement from '../components/kob/RoundManagement';
@@ -19,7 +20,7 @@ export default function KOBTournamentView() {
   const { tournamentId} = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [tournament, setTournament] = useState(null);
   const [players, setPlayers] = useState({});
   const [rounds, setRounds] = useState({});
@@ -29,6 +30,17 @@ export default function KOBTournamentView() {
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Get tab from URL or default to 'rounds'
+  const tabFromUrl = searchParams.get('tab') || 'rounds';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+  // Update URL when tab changes
+  useEffect(() => {
+    if (activeTab !== tabFromUrl) {
+      setSearchParams({ tab: activeTab });
+    }
+  }, [activeTab, tabFromUrl, setSearchParams]);
 
   // All useEffect calls at the top level
   useEffect(() => {
@@ -167,6 +179,10 @@ export default function KOBTournamentView() {
   const isCompleted = tournament.status === 'completed';
   const isFinal = currentRound && currentRound.roundNumber > 1 && Object.keys(players).filter(k => !players[k].eliminated).length <= 4;
 
+  // Check if user can manage this tournament
+  const canManage = canManageTournament(user, tournament);
+  const canDelete = canDeleteTournament(user, tournament);
+
   // Check if a round is a final round (4 or fewer players)
   const isRoundFinal = (round) => {
     if (!round || !round.poolIds) return false;
@@ -222,7 +238,7 @@ export default function KOBTournamentView() {
               >
                 {isCompleted ? 'Completed' : 'In Progress'}
               </span>
-              {isAdmin && (
+              {canDelete && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="px-3 py-1 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
@@ -243,7 +259,7 @@ export default function KOBTournamentView() {
         </div>
 
         {/* Admin Round Management */}
-        {isAdmin && currentRound && !isCompleted && (
+        {canManage && currentRound && !isCompleted && (
           <div className="mb-6">
             <RoundManagement
               tournament={tournament}
@@ -281,9 +297,45 @@ export default function KOBTournamentView() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content - 2 columns */}
-          <div className="lg:col-span-2 space-y-6">
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('rounds')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'rounds'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Rounds
+            </button>
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'leaderboard'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Leaderboard
+            </button>
+            <button
+              onClick={() => setActiveTab('info')}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'info'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Tournament Info
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'rounds' && (
+          <div className="space-y-6">
             {/* Rounds Section */}
             <div className="card">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Rounds</h2>
@@ -363,18 +415,23 @@ export default function KOBTournamentView() {
               )}
             </div>
           </div>
+        )}
 
-          {/* Sidebar - Overall Leaderboard */}
-          <div className="lg:col-span-1">
+        {activeTab === 'leaderboard' && (
+          <div>
             <Leaderboard
               players={players}
               standings={overallStandings}
               title={isCompleted ? "Final Standings" : "Overall Leaderboard"}
               showRank={true}
             />
+          </div>
+        )}
 
+        {activeTab === 'info' && (
+          <div>
             {/* Tournament Info */}
-            <div className="card mt-6">
+            <div className="card">
               <h3 className="text-lg font-semibold mb-3">Tournament Info</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -402,7 +459,7 @@ export default function KOBTournamentView() {
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Delete Confirmation Dialog */}
         {showDeleteConfirm && (

@@ -4,13 +4,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime } from '../../utils/tournamentStatus';
 import { MATCH_STATUS } from '../../utils/constants';
 import { getRoundName } from '../../utils/bracketGenerator';
+import { canManageTournament } from '../../utils/authorization';
 import ScoreApprovalPanel from './ScoreApprovalPanel';
 import AdminScoreSubmissionForm from './AdminScoreSubmissionForm';
 import EditScoreForm from './EditScoreForm';
 import EditMatchRulesForm from './EditMatchRulesForm';
 
 export default function MatchDetail({ match, tournament, players = {} }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingRules, setIsEditingRules] = useState(false);
@@ -63,6 +64,9 @@ export default function MatchDetail({ match, tournament, players = {} }) {
   };
 
   const statusBadge = getStatusBadge(match.status);
+
+  // Check if user can manage this tournament
+  const canManage = canManageTournament(user, tournament);
 
   // Check if this is a pool match
   const isPoolMatch = match.matchType === 'pool' || match.poolId;
@@ -231,7 +235,7 @@ export default function MatchDetail({ match, tournament, players = {} }) {
         )}
 
         {/* Admin Edit Button */}
-        {isAdmin && match.status === MATCH_STATUS.COMPLETED && !isEditing && (
+        {canManage && match.status === MATCH_STATUS.COMPLETED && !isEditing && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <button
               onClick={() => setIsEditing(true)}
@@ -244,14 +248,14 @@ export default function MatchDetail({ match, tournament, players = {} }) {
       </div>
 
       {/* Admin Edit Form */}
-      {isAdmin && isEditing && match.status === MATCH_STATUS.COMPLETED && (
+      {canManage && isEditing && match.status === MATCH_STATUS.COMPLETED && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <EditScoreForm match={match} onCancel={() => setIsEditing(false)} />
         </div>
       )}
 
       {/* Edit Match Rules Form */}
-      {isAdmin && isEditingRules && (
+      {canManage && isEditingRules && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <EditMatchRulesForm
             match={match}
@@ -295,7 +299,7 @@ export default function MatchDetail({ match, tournament, players = {} }) {
       )}
 
       {/* Admin Panel */}
-      {isAdmin && match.status !== MATCH_STATUS.COMPLETED && (
+      {canManage && match.status !== MATCH_STATUS.COMPLETED && (
         <>
           <div className="bg-white rounded-lg shadow-sm p-6">
             <AdminScoreSubmissionForm match={match} />
