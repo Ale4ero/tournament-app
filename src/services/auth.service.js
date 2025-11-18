@@ -7,19 +7,21 @@ import { DB_PATHS, USER_ROLE } from '../utils/constants';
  * Sign up new admin user
  * @param {string} email - Admin email
  * @param {string} password - Admin password
+ * @param {string} name - User's full name
  * @returns {Promise<Object>} User object with role
  */
-export async function signUpAdmin(email, password) {
+export async function signUpAdmin(email, password, name) {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
     // Create user profile in database
-    await createUserProfile(user.uid, user.email);
+    await createUserProfile(user.uid, user.email, name);
 
     return {
       uid: user.uid,
       email: user.email,
+      name: name,
       role: USER_ROLE.ADMIN,
       organizationId: null,
     };
@@ -58,6 +60,7 @@ export async function signInAdmin(email, password) {
     return {
       uid: user.uid,
       email: user.email,
+      name: userData.name || null,
       role: userData.role,
       organizationId: userData.organizationId || null,
     };
@@ -97,6 +100,7 @@ export function onAuthStateChange(callback) {
         callback({
           uid: user.uid,
           email: user.email,
+          name: userData.name || null,
           role: userData.role,
           organizationId: userData.organizationId || null,
         });
@@ -113,13 +117,15 @@ export function onAuthStateChange(callback) {
  * Create initial user profile (called after signup)
  * @param {string} uid - User ID
  * @param {string} email - User email
+ * @param {string} name - User's full name
  * @returns {Promise<void>}
  */
-export async function createUserProfile(uid, email) {
+export async function createUserProfile(uid, email, name) {
   try {
     const userRef = ref(database, `${DB_PATHS.USERS}/${uid}`);
     await set(userRef, {
       email,
+      name,
       role: USER_ROLE.ADMIN,
       organizationId: null,
       createdAt: Date.now(),

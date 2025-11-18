@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function SignupForm() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,6 +17,10 @@ export default function SignupForm() {
     setError('');
 
     // Validation
+    if (!name.trim()) {
+      return setError('Name is required');
+    }
+
     if (password !== confirmPassword) {
       return setError('Passwords do not match');
     }
@@ -27,7 +32,7 @@ export default function SignupForm() {
     setLoading(true);
 
     try {
-      await signUp(email, password);
+      await signUp(email, password, name.trim());
       navigate('/organization/setup');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
@@ -59,6 +64,21 @@ export default function SignupForm() {
                 {error}
               </div>
             )}
+
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="input-field placeholder:text-gray-400"
+                placeholder="John Doe"
+              />
+            </div>
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">

@@ -80,6 +80,11 @@ export default function Header() {
                 >
                   Admin Dashboard
                 </Link>
+                {user?.name && (
+                  <span className="text-sm text-gray-600">
+                    {user.name}
+                  </span>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="btn-secondary text-sm"
@@ -126,6 +131,14 @@ export default function Header() {
           {/* Slide-out Menu */}
           <div className="fixed top-16 right-0 bottom-0 w-64 bg-white shadow-xl z-50 md:hidden transform transition-transform duration-300 ease-in-out">
             <nav className="flex flex-col py-2">
+              {/* User Info - Show at top for admins */}
+              {isAdmin && user?.name && (
+                <div className="px-4 py-3 border-b border-gray-200 mb-2">
+                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
+              )}
+
               <Link
                 to="/"
                 className={getMobileLinkClassName('/')}

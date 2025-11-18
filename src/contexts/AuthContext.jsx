@@ -31,6 +31,7 @@ export function AuthProvider({ children }) {
         setUser({
           uid: currentUser.uid,
           email: currentUser.email,
+          name: userData.name || null,
           role: userData.role,
           organizationId: userData.organizationId || null,
         });
@@ -48,9 +49,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, name) => {
     try {
-      const userData = await signUpAdmin(email, password);
+      const userData = await signUpAdmin(email, password, name);
       setUser(userData);
       return userData;
     } catch (error) {
