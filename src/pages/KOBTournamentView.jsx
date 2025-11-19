@@ -11,7 +11,7 @@ import { DB_PATHS } from '../utils/constants';
 import { canManageTournament, canDeleteTournament } from '../utils/authorization';
 import Leaderboard from '../components/kob/Leaderboard';
 import KOBPoolList from '../components/kob/KOBPoolList';
-import RoundManagement from '../components/kob/RoundManagement';
+import { advanceToNextRound, isRoundCompleted } from '../services/kob.service';
 
 /**
  * KOBTournamentView - Main view for King of the Beach tournaments
@@ -30,6 +30,9 @@ export default function KOBTournamentView() {
   const [selectedRoundId, setSelectedRoundId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [advanceLoading, setAdvanceLoading] = useState(false);
+  const [advanceError, setAdvanceError] = useState('');
+  const [allMatchesCompleted, setAllMatchesCompleted] = useState(false);
 
   // Get tab from URL or default to 'rounds'
   const tabFromUrl = searchParams.get('tab') || 'rounds';
@@ -100,10 +103,88 @@ export default function KOBTournamentView() {
     };
   }, [tournamentId]);
 
+  // Calculate current round early (needed by useEffect)
+  const roundsList = rounds ? Object.values(rounds).sort((a, b) => a.roundNumber - b.roundNumber) : [];
+  const currentRound = roundsList.find(r => r.status !== 'completed') || roundsList[roundsList.length - 1];
+  const isCompleted = tournament?.status === 'completed';
 
   const handleRoundAdvanced = () => {
     // Refresh matches after round advancement
     getMatchesByTournament(tournamentId).then(setMatches);
+  };
+
+  // Check if all matches in current round are completed
+  useEffect(() => {
+    async function checkCompletion() {
+      if (!tournament?.id || !currentRound?.id || isCompleted) {
+        setAllMatchesCompleted(false);
+        return;
+      }
+
+      const completed = await isRoundCompleted(tournament.id, currentRound.id);
+      setAllMatchesCompleted(completed);
+    }
+
+    checkCompletion();
+
+    // Re-check every 3 seconds
+    const interval = setInterval(checkCompletion, 3000);
+    return () => clearInterval(interval);
+  }, [tournament?.id, currentRound?.id, isCompleted]);
+
+  const handleAdvanceRound = async () => {
+    if (!currentRound || !tournament) {
+      setAdvanceError('No current round found');
+      return;
+    }
+
+    setAdvanceLoading(true);
+    setAdvanceError('');
+
+    try {
+      // Check if all matches are completed
+      const completed = await isRoundCompleted(tournament.id, currentRound.id);
+      if (!completed) {
+        setAdvanceError('Cannot advance: Not all matches in this round are completed');
+        setAdvanceLoading(false);
+        return;
+      }
+
+      // Get current round config and next round config from roundsConfig
+      const currentRoundConfig = tournament.kobConfig?.roundsConfig?.find(
+        r => r.roundNumber === currentRound.roundNumber
+      );
+      const nextRoundConfig = tournament.kobConfig?.roundsConfig?.find(
+        r => r.roundNumber === currentRound.roundNumber + 1
+      );
+
+      // Get advancePerPool from current round config
+      const advancePerPool = currentRoundConfig?.advancePerPool || tournament.kobConfig?.advancePerPool || 2;
+
+      // Get poolSize for next round from next round config
+      const nextRoundPoolSize = nextRoundConfig?.selectedPoolConfig?.baseSize ||
+                                 Math.floor((currentRoundConfig?.poolsCount || 1) * advancePerPool / (nextRoundConfig?.poolsCount || 1));
+
+      // Check if current round is final
+      const isFinalRound = currentRoundConfig?.isFinal || false;
+
+      await advanceToNextRound(
+        tournament.id,
+        currentRound.id,
+        currentRound.roundNumber,
+        advancePerPool,
+        nextRoundPoolSize,
+        isFinalRound
+      );
+
+      // Refresh matches
+      handleRoundAdvanced();
+    } catch (err) {
+      console.error('Error advancing round:', err);
+      setAdvanceError(err.message || 'Failed to advance to next round');
+    } finally {
+      setAdvanceLoading(false);
+    }
   };
 
   const handleDeleteTournament = async () => {
@@ -147,10 +228,6 @@ export default function KOBTournamentView() {
     );
   }
 
-  // Get current round
-  const roundsList = rounds ? Object.values(rounds).sort((a, b) => a.roundNumber - b.roundNumber) : [];
-  const currentRound = roundsList.find(r => r.status !== 'completed') || roundsList[roundsList.length - 1];
-
   // Determine which round to display (selected or current)
   const displayRound = selectedRoundId && rounds[selectedRoundId]
     ? rounds[selectedRoundId]
@@ -176,7 +253,6 @@ export default function KOBTournamentView() {
         .filter(Boolean)
     : [];
 
-  const isCompleted = tournament.status === 'completed';
   const isFinal = currentRound && currentRound.roundNumber > 1 && Object.keys(players).filter(k => !players[k].eliminated).length <= 4;
 
   // Check if user can manage this tournament
@@ -202,7 +278,7 @@ export default function KOBTournamentView() {
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
-        <div className="mb-4">
+        <div className="mb-4 mt-6">
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -287,14 +363,70 @@ export default function KOBTournamentView() {
           </div>
         </div>
 
-        {/* Admin Round Management */}
+        {/* Admin Round Management - Advance to Next Round Button */}
         {canManage && currentRound && !isCompleted && (
-          <div className="mb-6">
-            <RoundManagement
-              tournament={tournament}
-              currentRound={currentRound}
-              onRoundAdvanced={handleRoundAdvanced}
-            />
+          <div className="mb-6 card bg-blue-50 border-blue-200">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Round {currentRound.roundNumber} Management
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {!allMatchesCompleted
+                    ? 'Complete all matches to advance to the next round'
+                    : 'All matches completed - ready to advance'}
+                </p>
+              </div>
+
+              {!allMatchesCompleted ? (
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                  In Progress
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  Ready
+                </span>
+              )}
+            </div>
+
+            {advanceError && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {advanceError}
+              </div>
+            )}
+
+            {allMatchesCompleted && (
+              <div>
+                <button
+                  onClick={handleAdvanceRound}
+                  disabled={advanceLoading}
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {advanceLoading
+                    ? 'Advancing to next round...'
+                    : (() => {
+                        const currentRoundConfig = tournament.kobConfig?.roundsConfig?.find(
+                          r => r.roundNumber === currentRound.roundNumber
+                        );
+                        return currentRoundConfig?.isFinal
+                          ? 'Complete Tournament'
+                          : 'Advance to Next Round';
+                      })()}
+                </button>
+
+                <p className="text-xs text-gray-500 mt-2">
+                  {(() => {
+                    const currentRoundConfig = tournament.kobConfig?.roundsConfig?.find(
+                      r => r.roundNumber === currentRound.roundNumber
+                    );
+                    const advancePerPool = currentRoundConfig?.advancePerPool || tournament.kobConfig?.advancePerPool || 2;
+                    return currentRoundConfig?.isFinal
+                      ? 'This will finalize the tournament and compute final standings.'
+                      : `This will advance the top ${advancePerPool} player${advancePerPool !== 1 ? 's' : ''} from each pool to the next round.`;
+                  })()}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -439,6 +571,10 @@ export default function KOBTournamentView() {
                     tournamentId={tournamentId}
                     roundId={displayRound.id}
                     isFinalRound={isRoundFinal(displayRound)}
+                    advancePerPool={(() => {
+                      const roundConfig = tournament.kobConfig?.roundsConfig?.find(r => r.roundNumber === displayRound.roundNumber);
+                      return roundConfig?.advancePerPool || tournament.kobConfig?.advancePerPool || 2;
+                    })()}
                   />
                 </div>
               )}
@@ -477,7 +613,13 @@ export default function KOBTournamentView() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Advance/Pool:</span>
-                  <span className="font-medium">{tournament.kobConfig?.advancePerPool || 2}</span>
+                  <span className="font-medium">
+                    {(() => {
+                      const currentRoundNum = tournament.kobConfig?.currentRound || 1;
+                      const roundConfig = tournament.kobConfig?.roundsConfig?.find(r => r.roundNumber === currentRoundNum);
+                      return roundConfig?.advancePerPool || tournament.kobConfig?.advancePerPool || 2;
+                    })()}
+                  </span>
                 </div>
                 {currentRound && (
                   <div className="flex justify-between">
@@ -492,7 +634,10 @@ export default function KOBTournamentView() {
 
         {/* Delete Confirmation Dialog */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 flex items-center justify-center z-50"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          >
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">
                 Delete Tournament?

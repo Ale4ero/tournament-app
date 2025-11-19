@@ -11,8 +11,9 @@ import KOBMatchCard from './KOBMatchCard';
  * @param {string} tournamentId - Tournament ID
  * @param {string} roundId - Round ID
  * @param {boolean} isFinalRound - Whether this is the final round
+ * @param {number} advancePerPool - Number of players advancing per pool
  */
-export default function KOBPoolCard({ pool, players, matches, tournamentId, roundId, isFinalRound }) {
+export default function KOBPoolCard({ pool, players, matches, tournamentId, roundId, isFinalRound, advancePerPool = 2 }) {
   const [activeView, setActiveView] = useState('standings'); // 'standings' | 'matches'
   const [standings, setStandings] = useState(pool?.standings || {});
 
@@ -144,7 +145,7 @@ export default function KOBPoolCard({ pool, players, matches, tournamentId, roun
                       return (b.diff || 0) - (a.diff || 0);
                     })
                     .map((player, index) => {
-                      const isAdvancing = !isFinalRound && index < 2; // Top 2 advance (or based on tournament config), but not in final round
+                      const isAdvancing = !isFinalRound && index < advancePerPool; // Top N players advance based on tournament config
                       const wins = player.wins || 0;
                       const losses = player.losses || 0;
                       const pointsFor = player.pointsFor || 0;

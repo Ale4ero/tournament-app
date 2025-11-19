@@ -208,6 +208,26 @@ export async function createKOBTournament(tournamentData, players, kobConfig, ad
       throw new Error('KOB tournaments require at least 4 players');
     }
 
+    // Build kobConfig - use roundsConfig if provided, otherwise use defaults
+    const finalKobConfig = kobConfig.roundsConfig
+      ? {
+          // Only include matchRules from DEFAULT_KOB_CONFIG
+          matchRules: {
+            ...DEFAULT_KOB_CONFIG.matchRules,
+            ...kobConfig.matchRules,
+          },
+          roundsConfig: kobConfig.roundsConfig,
+          currentRound: 0,
+          totalRounds: null, // Will be determined dynamically
+        }
+      : {
+          // Legacy format for backward compatibility
+          ...DEFAULT_KOB_CONFIG,
+          ...kobConfig,
+          currentRound: 0,
+          totalRounds: null,
+        };
+
     const tournament = {
       id: tournamentId,
       name: tournamentData.name,
@@ -218,12 +238,7 @@ export async function createKOBTournament(tournamentData, players, kobConfig, ad
       status: TOURNAMENT_STATUS.UPCOMING,
       createdAt: Date.now(),
       createdBy: adminUid,
-      kobConfig: {
-        ...DEFAULT_KOB_CONFIG,
-        ...kobConfig,
-        currentRound: 0,
-        totalRounds: null, // Will be determined dynamically
-      },
+      kobConfig: finalKobConfig,
     };
 
     // Only include endDate if provided
@@ -681,28 +696,10 @@ export async function getAdvancingPlayers(tournamentId, roundId, advancePerPool)
  * @param {number} poolSize - Pool size for next round
  * @returns {Promise<Object>} New round data
  */
-export async function advanceToNextRound(tournamentId, currentRoundId, currentRoundNumber, advancePerPool, poolSize = 4) {
+export async function advanceToNextRound(tournamentId, currentRoundId, currentRoundNumber, advancePerPool, poolSize = 4, isFinalRound = false) {
   try {
     // Get advancing players BEFORE marking round complete
     const advancingPlayers = await getAdvancingPlayers(tournamentId, currentRoundId, advancePerPool);
-
-    // Get the current round to check how many players were in it
-    const currentRoundRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}/rounds/${currentRoundId}`);
-    const currentRoundSnapshot = await get(currentRoundRef);
-    const currentRound = currentRoundSnapshot.val();
-
-    // Count players in current round
-    let currentRoundPlayerCount = 0;
-    if (currentRound && currentRound.poolIds) {
-      for (const poolId of currentRound.poolIds) {
-        const poolRef = ref(database, `${DB_PATHS.TOURNAMENTS}/${tournamentId}/rounds/${currentRoundId}/pools/${poolId}`);
-        const poolSnapshot = await get(poolRef);
-        if (poolSnapshot.exists()) {
-          const pool = poolSnapshot.val();
-          currentRoundPlayerCount += pool.playerIds?.length || 0;
-        }
-      }
-    }
 
     // Mark current round as completed
     await update(
@@ -713,8 +710,8 @@ export async function advanceToNextRound(tournamentId, currentRoundId, currentRo
       }
     );
 
-    // Check if this was the final round (4 or fewer players competed in THIS round)
-    if (currentRoundPlayerCount <= 4) {
+    // Check if this was the final round (based on roundsConfig)
+    if (isFinalRound) {
       // This was the final round - compute final standings
       await computeFinalStandings(tournamentId, currentRoundId, advancingPlayers);
 
